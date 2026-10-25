@@ -1,0 +1,20 @@
+{
+  "name": "starwake",
+  "private": true,
+  "version": "0.8.0",
+  "description": "3D space exploration game with real-scale Newtonian flight (three.js)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

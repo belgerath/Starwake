@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#04060c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Starwake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<div id="app">
+  <div class="hud" id="hud">
+    <div class="readouts" id="readouts">
+      <div class="ro"><span class="lab">Speed</span><div><span class="val" id="spd">0</span><span class="unit">m/s</span></div></div>
+      <div class="ro"><span class="lab" id="altLab">Altitude</span><div><span class="val" id="alt">0</span><span class="unit">km</span></div></div>
+      <div class="ro"><span class="lab">Vertical</span><div><span class="val sm" id="vsp">0</span><span class="unit">m/s</span></div></div>
+      <div class="ro"><span class="lab">Throttle <span id="thrPct">0%</span></span><div class="bar"><i id="thrBar"></i></div></div>
+      <div class="ro"><span class="lab">Apoapsis</span><div><span class="val sm" id="ap">0</span><span class="unit" id="apU">km</span></div></div>
+      <div class="ro"><span class="lab">Periapsis</span><div><span class="val sm" id="pe">0</span><span class="unit">km</span></div></div>
+    </div>
+    <div class="tr">
+      <div class="trrow">
+        <button class="btn" id="camBtn" type="button">Chase</button>
+        <button class="btn" id="helpBtn" type="button" aria-label="Pause and show controls">?</button>
+      </div>
+      <button class="btn" id="lookBtn" type="button" aria-pressed="false">Look</button>
+    </div>
+    <div id="markers"></div>
+    <div class="vm" id="vmPro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 2v6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/></svg></div>
+    <div class="vm" id="vmRetro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 11l8 8M19 11l-8 8M15 28v-6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/></svg></div>
+    <div class="shipmk" id="shipMk" hidden><i></i><span>Halberd</span></div>
+    <div id="toast" role="status"></div>
+    <div id="fstick" hidden><div id="fknob"></div></div>
+    <div class="fc" id="fc">
+      <div class="row">
+        <button class="chip sq" id="warpDn" type="button" aria-label="Slow down time">−</button>
+        <div class="wlab" id="wlab"><span class="lab">Time</span><span id="warpVal">1×</span></div>
+        <button class="chip sq" id="warpUp" type="button" aria-label="Speed up time">+</button>
+      </div>
+      <div class="row">
+        <button class="chip" id="holdPro" type="button" aria-pressed="true">Prograde</button>
+        <button class="chip" id="holdRetro" type="button" aria-pressed="false">Retrograde</button>
+      </div>
+      <div class="row">
+        <button class="chip roll" id="rollL" type="button" aria-label="Roll left"><span class="flip"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 13.5A6 6 0 1 1 15 13.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16.8 14.8L13.2 12.2L13 16.4Z" fill="currentColor"/></svg></span>Roll</button>
+        <button class="chip roll" id="rollR" type="button" aria-label="Roll right">Roll<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 13.5A6 6 0 1 1 15 13.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16.8 14.8L13.2 12.2L13 16.4Z" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+    <div class="touch" id="touch" hidden>
+      <div class="rightpad">
+        <button id="boostBtn" type="button">Boost</button>
+        <div id="thrTrack" aria-label="Engine thrust"><span class="trk-lab">Thrust</span><div id="thrFillT"></div><div id="thrKnob"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="intro">
+    <div class="card">
+      <div>
+        <p class="sub">Phase 1 · Flight test</p>
+        <h1 class="wordmark">Starwake</h1>
+      </div>
+      <p>The Halberd, a 400 m destroyer, is in orbit 400 km above Veyra at over 7 km/s. The physics are real: nothing slows you down except your own engines, and gravity bends your path into an orbit. To slow down, hold Retrograde and burn. Use time warp to cross the distances.</p>
+      <dl class="keys" id="keysKb">
+        <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down</dd>
+        <dt><kbd>Z</kbd><kbd>X</kbd></dt><dd>Full thrust, cut engines</dd>
+        <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>Turn left and right</dd>
+        <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Nose up and down</dd>
+        <dt><kbd>Q</kbd><kbd>E</kbd></dt><dd>Roll</dd>
+        <dt><kbd>Shift</kbd></dt><dd>Boost: double thrust while held</dd>
+        <dt><kbd>Space</kbd></dt><dd>Retro thrusters</dd>
+        <dt><kbd>F</kbd><kbd>R</kbd></dt><dd>Hold prograde, hold retrograde</dd>
+        <dt><kbd>,</kbd><kbd>.</kbd></dt><dd>Slow down, speed up time</dd>
+        <dt><kbd>C</kbd><kbd>M</kbd></dt><dd>Cycle cameras, map view</dd>
+        <dt><kbd>Click a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
+        <dt><kbd>Mouse drag</kbd></dt><dd>Steer</dd>
+        <dt><kbd>Right drag</kbd></dt><dd>Look around, scroll to zoom</dd>
+      </dl>
+      <dl class="keys" id="keysTouch" hidden>
+        <dt><kbd>One finger</kbd></dt><dd>Steer from anywhere on screen</dd>
+        <dt><kbd>Two thumbs</kbd></dt><dd>Twist like a steering wheel to roll, pinch to zoom</dd>
+        <dt><kbd>Look</kbd></dt><dd>One finger moves the camera instead of steering</dd>
+        <dt><kbd>Right slider</kbd></dt><dd>Engine thrust</dd>
+        <dt><kbd>Boost</kbd></dt><dd>Double thrust while held</dd>
+        <dt><kbd>Roll</kbd></dt><dd>Hold to roll left or right</dd>
+        <dt><kbd>Prograde</kbd></dt><dd>Point along or against your motion</dd>
+        <dt><kbd>Tap a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
+        <dt><kbd>Time</kbd></dt><dd>Speed up or slow down time</dd>
+        <dt><kbd>Chase</kbd></dt><dd>Switch to bridge or map (drag to rotate the map)</dd>
+      </dl>
+      <div class="go">
+        <button class="launch" id="launchBtn" type="button" hidden>Launch</button>
+        <span id="status">Generating Veyra…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
