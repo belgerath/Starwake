@@ -48,27 +48,39 @@ export function chunkIndex() {
 // Returns {pos, nor} (Float32Array, NVERT × 3, body frame, pos relative to centre), centre (metres,
 // body frame), radius (bounding sphere about the centre) and minH / maxH (ground height range).
 export function buildChunk(face, level, ix, iy) {
-  const [a0, b0, s] = chunkSpan(level, ix, iy), B = G + 2, step = s / (G - 1), d = [0, 0, 0];
+  const [a0, b0, s] = chunkSpan(level, ix, iy), step = s / (G - 1), d = [0, 0, 0], spacing = chunkSize(level) / (G - 1);
   faceDir(face, a0 + s / 2, b0 + s / 2, d);
   const cx = d[0] * MOON_R, cy = d[1] * MOON_R, cz = d[2] * MOON_R;
-  // Sample one ring beyond the edge too, so normals on the edge match the neighbouring chunk's.
-  const P = new Float64Array(B * B * 3); let minH = Infinity, maxH = -Infinity;
+  // Sample two rings beyond the edge, so edge normals match the neighbouring chunk's.
+  const B = G + 4, P = new Float64Array(B * B * 3); let minH = Infinity, maxH = -Infinity;
   for (let j = 0; j < B; j++) for (let i = 0; i < B; i++) {
-    faceDir(face, a0 + (i - 1) * step, b0 + (j - 1) * step, d);
-    const h = talHeight(d[0], d[1], d[2]), r = MOON_R + h, k = (j * B + i) * 3;
+    faceDir(face, a0 + (i - 2) * step, b0 + (j - 2) * step, d);
+    const h = talHeight(d[0], d[1], d[2], spacing), r = MOON_R + h, k = (j * B + i) * 3;
     P[k] = d[0] * r; P[k + 1] = d[1] * r; P[k + 2] = d[2] * r;
-    if (i > 0 && j > 0 && i <= G && j <= G) { if (h < minH) minH = h; if (h > maxH) maxH = h; }
+    if (i > 1 && j > 1 && i < G + 2 && j < G + 2) { if (h < minH) minH = h; if (h > maxH) maxH = h; }
   }
-  const pos = new Float32Array(NVERT * 3), nor = new Float32Array(NVERT * 3); let rad2 = 0;
-  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
-    const k = ((j + 1) * B + i + 1) * 3, o = (j * G + i) * 3;
-    pos[o] = P[k] - cx; pos[o + 1] = P[k + 1] - cy; pos[o + 2] = P[k + 2] - cz;
-    const r2 = pos[o] ** 2 + pos[o + 1] ** 2 + pos[o + 2] ** 2; if (r2 > rad2) rad2 = r2;
-    const xp = k + 3, xm = k - 3, yp = k + B * 3, ym = k - B * 3;
+  // Normals from central differences, then a [1 2 1] blur. Crater walls sharper than the vertex
+  // spacing make heights alternate from one vertex to the next; unblurred, that shows as fine
+  // stripes on distant slopes. The blur cancels exactly that alternation.
+  const N = new Float64Array(B * B * 3);
+  for (let j = 1; j < B - 1; j++) for (let i = 1; i < B - 1; i++) {
+    const k = (j * B + i) * 3, xp = k + 3, xm = k - 3, yp = k + B * 3, ym = k - B * 3;
     const ux = P[xp] - P[xm], uy = P[xp + 1] - P[xm + 1], uz = P[xp + 2] - P[xm + 2];
     const vx = P[yp] - P[ym], vy = P[yp + 1] - P[ym + 1], vz = P[yp + 2] - P[ym + 2];
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz);
-    nor[o] = nx / nl; nor[o + 1] = ny / nl; nor[o + 2] = nz / nl;
+    N[k] = nx / nl; N[k + 1] = ny / nl; N[k + 2] = nz / nl;
+  }
+  const pos = new Float32Array(NVERT * 3), nor = new Float32Array(NVERT * 3); let rad2 = 0;
+  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+    const k = ((j + 2) * B + i + 2) * 3, o = (j * G + i) * 3;
+    pos[o] = P[k] - cx; pos[o + 1] = P[k + 1] - cy; pos[o + 2] = P[k + 2] - cz;
+    const r2 = pos[o] ** 2 + pos[o + 1] ** 2 + pos[o + 2] ** 2; if (r2 > rad2) rad2 = r2;
+    let nx = 0, ny = 0, nz = 0;
+    for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
+      const w = (2 - Math.abs(a)) * (2 - Math.abs(b)), q = k + (b * B + a) * 3;
+      nx += N[q] * w; ny += N[q + 1] * w; nz += N[q + 2] * w;
+    }
+    const nl = Math.hypot(nx, ny, nz); nor[o] = nx / nl; nor[o + 1] = ny / nl; nor[o + 2] = nz / nl;
   }
   const depth = 20 + chunkSize(level) * 0.015;
   for (let k = 0; k < PERIM; k++) {

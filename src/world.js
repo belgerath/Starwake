@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, A_MAIN, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
-import {scene, sunDir, sunLight, hemi, makeEnv} from './engine.js';
+import {scene, sunDir, sunLight, hemi, makeEnv, renderer, cam} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
 import {S, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
@@ -86,7 +86,7 @@ export function updateWorld(dt, rt) {
   ship.root.quaternion.copy(S.quat); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
   scene.updateMatrixWorld();
   for (const m of [W.planet, W.cloudMesh]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
-  W.terrain.updateUniforms(W.moon);
+  W.terrain.updateUniforms(W.moon, cam, renderer.domElement.height);
   W.atmo.material.uniforms.center.value.copy(W.world.position); W.ringMat.uniforms.center.value.copy(W.world.position);
   // Fade the ring sheet when flying through it, where individual rocks take over.
   peq.copy(S.pos).applyQuaternion(qTiltInv); const rs = Math.hypot(peq.x, peq.z);

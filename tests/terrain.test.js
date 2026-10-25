@@ -1,7 +1,7 @@
 // Tal's terrain mesh (terrain-build.js): chunks must agree with tal.js and with each other, or there
 // are holes in the ground and the drawn ground differs from what physics collides with.
 import {describe, it, expect} from 'vitest';
-import {buildChunk, chunkIndex, NVERT} from '../src/terrain-build.js';
+import {buildChunk, chunkIndex, chunkSize, NVERT} from '../src/terrain-build.js';
 import {talHeight} from '../src/tal.js';
 import {MOON_R, TERRAIN_GRID as G} from '../src/config.js';
 
@@ -10,11 +10,18 @@ const edge = c => { const out = []; for (let i = 0; i < G; i++) out.push(abs(c, 
 const near = (p, list, tol) => list.some(q => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < tol);
 
 describe('terrain chunks', () => {
-  it('put every vertex on the ground tal.js describes', () => {
-    const c = buildChunk(2, 9, 300, 170);
+  it('put every vertex on the ground tal.js describes, with detail down to their vertex spacing', () => {
+    const c = buildChunk(2, 9, 300, 170), spacing = chunkSize(9) / (G - 1);
     for (let i = 0; i < G * G; i += 37) {
       const p = abs(c, i), r = Math.hypot(...p);
-      expect(Math.abs(r - MOON_R - talHeight(p[0] / r, p[1] / r, p[2] / r))).toBeLessThan(0.5);
+      expect(Math.abs(r - MOON_R - talHeight(p[0] / r, p[1] / r, p[2] / r, spacing))).toBeLessThan(0.5);
+    }
+  });
+  it('near the ship, chunks carry the full detail physics uses (within 1 m)', () => {
+    const c = buildChunk(4, 13, 4100, 4000); // 10 m between vertices, what is drawn under the ship at the deck
+    for (let i = 0; i < G * G; i += 13) {
+      const p = abs(c, i), r = Math.hypot(...p);
+      expect(Math.abs(r - MOON_R - talHeight(p[0] / r, p[1] / r, p[2] / r))).toBeLessThan(1);
     }
   });
   it('share their edges exactly with neighbours on the same face', () => {

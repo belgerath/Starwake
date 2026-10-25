@@ -93,7 +93,7 @@ void main(){vec3 d=faceDir(gl_FragCoord.xy/res);vec4 t=textureCube(H,d);float h=
   float n=snoise(d*60.0)*0.5+snoise(d*180.0)*0.25;
   vec3 col=mix(vec3(0.62,0.60,0.57),vec3(0.29,0.29,0.30),smoothstep(0.5,0.62,m));
   col*=0.9+n*0.12+h*0.2;
-  gl_FragColor=vec4(col,0.0);}`;
+  gl_FragColor=vec4(col,m);}`; // alpha: the mare factor, which the terrain shader uses to rebuild this colour per pixel
 
 export const SURF_VERT=`#include <common>
 #include <logdepthbuf_pars_vertex>
@@ -186,31 +186,56 @@ void main(){
 
 // Tal's ground (terrain.js). Chunk vertices are relative to the chunk centre; modelViewMatrix is
 // composed in doubles by three.js, so positions near the camera stay precise. Normals and vDir are in
-// Tal's body frame: vDir picks the baked colour and normal maps, the same ones Tal used as a sphere.
+// Tal's body frame: vDir picks the baked colour and normal maps. The ship's shadow comes from the sun's
+// shadow map (three.js chunks; the material has lights on).
 export const TERRAIN_VERT=`#include <common>
 #include <logdepthbuf_pars_vertex>
-uniform vec3 moonC;uniform mat3 objRot;
-varying vec3 vDir;varying vec3 vN;varying vec3 vW;
-void main(){vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vDir=(w.xyz-moonC)*objRot;vN=normal;
+#include <shadowmap_pars_vertex>
+uniform vec3 moonC;uniform mat3 objRot;uniform float moonR;
+varying vec3 vDir;varying vec3 vN;varying vec3 vW;varying float vH;
+void main(){vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vec3 b=(w.xyz-moonC)*objRot;vDir=b;vH=length(b)-moonR;vN=normal;
   gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
 #include <logdepthbuf_vertex>
+#if defined(USE_SHADOWMAP)&&NUM_DIR_LIGHT_SHADOWS>0
+  vDirectionalShadowCoord[0]=directionalShadowMatrix[0]*(w+vec4(normalize(objRot*normal)*directionalLightShadows[0].shadowNormalBias,0.0));
+#endif
 }`;
-// Lighting as PLANET_FRAG does for Tal. Far away the baked normal map (5 km per texel) is finer than the
-// mesh; close up the mesh is finer, so the normal blends from map to mesh with distance (mapFade, metres).
-export const TERRAIN_FRAG=`#include <logdepthbuf_pars_fragment>
-uniform samplerCube albedoMap;uniform samplerCube normalMap;uniform float sunI;uniform vec3 sunDir;uniform mat3 objRot;uniform vec2 mapFade;
-varying vec3 vDir;varying vec3 vN;varying vec3 vW;
+// Lighting as Tal always had. The baked maps have texels about 5 km across, so up close they would be
+// blocky: there the colour is worked out per pixel from the bake's own formula (MOON_ALB), the shape
+// comes from the mesh (with detail down to small craters), and fine noise varies the colour as you get
+// closer. Bump-mapped lighting was tried: at grazing angles it sparkles along triangle edges.
+// mpp is metres per pixel, from distance and viewing angle (pixAng is one pixel's angle) rather than
+// screen derivatives, which jump at triangle edges and would switch detail on and off along them.
+export const TERRAIN_FRAG=`#include <common>
+#include <logdepthbuf_pars_fragment>
+#include <packing>
+#include <shadowmap_pars_fragment>
+uniform samplerCube albedoMap;uniform samplerCube normalMap;uniform float sunI;uniform float relief;uniform float pixAng;uniform vec3 sunDir;uniform mat3 objRot;
+varying vec3 vDir;varying vec3 vN;varying vec3 vW;varying float vH;
 `+NOISE+`
 void main(){
 #include <logdepthbuf_fragment>
-  vec3 d=normalize(vDir);vec4 A=textureCube(albedoMap,d);vec4 Nt=textureCube(normalMap,d);
-  vec3 nMap=normalize(d+(Nt.xyz*2.0-1.0)*0.5);
-  vec3 nObj=normalize(mix(normalize(vN),nMap,smoothstep(mapFade.x,mapFade.y,length(vW-cameraPosition))));
-  float px=length(fwidth(d));float detF=1.0-smoothstep(0.0005,0.002,px);
-  float n1=0.0;if(detF>0.0){n1=snoise(d*900.0)*0.65+snoise(d*2700.0)*0.35;}
-  vec3 alb=pow(A.rgb,vec3(2.2))*(1.0+n1*0.08*detF);
-  vec3 N=normalize(objRot*nObj),Ng=normalize(objRot*d),L=normalize(sunDir);
+  vec3 d=normalize(vDir),Ng=normalize(objRot*d),V=cameraPosition-vW;float dist=length(V);
+  float mpp=dist*pixAng/max(abs(dot(Ng,V/dist)),0.2);
+  vec4 A=textureCube(albedoMap,d);vec3 col=A.rgb;float tex=smoothstep(1500.0,5000.0,mpp);
+  if(tex<1.0){float n=snoise(d*60.0)*0.5+snoise(d*180.0)*0.25;
+    vec3 c=mix(vec3(0.62,0.60,0.57),vec3(0.29,0.29,0.30),smoothstep(0.5,0.62,A.a))*(0.9+n*0.12+vH/relief*0.2);
+    col=mix(c,A.rgb,tex);}
+  // Five octaves, 1.8 km down to 22 m across; each fades in once it spans more than a few pixels.
+  float cd=0.0,lam=1800.0,f=900.0;
+  for(int k=0;k<5;k++){float w=1.0-smoothstep(lam*0.1,lam*0.3,mpp);
+    if(w>0.0)cd+=snoise(d*f+vec3(float(k)*31.7))*w;
+    lam/=3.0;f*=3.0;}
+  col*=1.0+cd*0.06;
+  vec3 Nm=normalize(objRot*normalize(vN)),Nt=normalize(objRot*normalize(d+(textureCube(normalMap,d).xyz*2.0-1.0)*0.5));
+  vec3 N=normalize(mix(Nm,Nt,smoothstep(300.0,1200.0,mpp)));
+  vec3 L=normalize(sunDir);
   float diff=max(dot(N,L),0.0)*smoothstep(-0.06,0.1,dot(Ng,L));
+#if defined(USE_SHADOWMAP)&&NUM_DIR_LIGHT_SHADOWS>0
+  // The ship's shadow. Not black: sunlit ground all around bounces some light into it.
+  diff*=mix(0.12,1.0,getShadow(directionalShadowMap[0],directionalLightShadows[0].shadowMapSize,directionalLightShadows[0].shadowBias,directionalLightShadows[0].shadowRadius,vDirectionalShadowCoord[0]));
+#endif
+  vec3 alb=pow(col,vec3(2.2));
   gl_FragColor=vec4(alb*diff*vec3(1.0,0.97,0.92)*sunI+alb*0.003,1.0);
 #include <tonemapping_fragment>
 #include <encodings_fragment>
