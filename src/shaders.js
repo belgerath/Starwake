@@ -248,9 +248,9 @@ export const STAR_VERT=`attribute float mag;attribute vec3 starColor;
 uniform float exposure;uniform float pxScale;
 varying vec3 vCol;varying float vI;varying float vK;
 void main(){float L=pow(10.0,-0.4*(mag-1.0));
-  vI=min(1.5,0.9*pow(L,0.55))*exposure;vCol=starColor;
+  vI=min(1.6,1.1*pow(L,0.55))*exposure;vCol=starColor;
   gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-  float size=(1.8+2.6*pow(L,0.3)*sqrt(exposure))*pxScale;
+  float size=(1.3+3.4*pow(L,0.3)*sqrt(exposure))*pxScale; // faint stars are pinpoints
   vK=mix(1.0,6.0,smoothstep(2.5*pxScale,7.0*pxScale,size)); // tiny points need a flat profile to show at all
   if(vI<0.012)gl_Position=vec4(2.0,2.0,2.0,1.0);
   gl_PointSize=size;}`;
@@ -260,22 +260,24 @@ void main(){vec2 p=gl_PointCoord*2.0-1.0;float r2=dot(p,p);if(r2>1.0)discard;
   gl_FragColor=vec4(vCol*min(vI,1.0)*f,1.0);
 #include <encodings_fragment>
 }`;
-// The Milky Way glow, from the baked cube map, which holds the square root of the brightness so that
-// 8 bits still give smooth gradients in the dark.
+// The Milky Way glow, from the baked cube map, which holds the square root of 0.4 × the brightness so
+// that 8 bits still give smooth gradients in the dark.
 export const SKY_VERT=`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
 export const SKY_FRAG=`uniform samplerCube map;uniform float exposure;uniform float intensity;varying vec3 vDir;
 void main(){vec3 c=textureCube(map,normalize(vDir)).rgb;gl_FragColor=vec4(c*c*intensity*exposure,1.0);
 #include <encodings_fragment>
 }`;
 // Bake: the galaxy seen edge-on from inside. A band along the plane (gN is its pole), brighter and
-// thicker toward the centre (gC), with patchy star clouds, dark dust lanes along the middle, a bulge
-// at the centre and a faint wide glow. Warmer toward the centre, brown in the dust.
+// thicker toward the centre (gC), with patchy star clouds and dark dust lanes that run along the band
+// (their noise is sampled on a cylinder squashed across the band), a golden bulge at the centre and
+// blue-white arms.
 export const MILKY_WAY=`uniform vec3 gN;uniform vec3 gC;
 void main(){vec3 d=faceDir(gl_FragCoord.xy/res);vec3 e=normalize(cross(gN,gC));
   float b=asin(clamp(dot(d,gN),-1.0,1.0)),l=atan(dot(d,e),dot(d,gC));
-  float core=exp(-l*l/0.45),w=0.10+0.09*core,band=exp(-b*b/(w*w));
-  float clouds=0.55+0.6*(fbm(d*3.2+vec3(2.1,7.3,4.4),6)*0.5+0.5),grain=0.85+0.3*(fbm(d*14.0+vec3(9.1),4)*0.5+0.5);
-  float lane=smoothstep(0.42,0.8,ridged(d*3.5+vec3(5.5,1.3,8.8),5))*exp(-b*b/(0.25*w*w));
-  float I=band*(0.3+0.7*core)*clouds*grain*(1.0-0.85*lane)+exp(-(l*l+b*b*5.0)/0.05)*0.7+0.02*exp(-b*b/0.6);
-  vec3 col=mix(mix(vec3(0.80,0.86,1.0),vec3(1.0,0.88,0.72),core*0.8),vec3(0.62,0.52,0.44),lane*0.4);
-  gl_FragColor=vec4(sqrt(clamp(col*I,0.0,1.0)),1.0);}`;
+  vec3 q=vec3(cos(l),sin(l),b*1.8);
+  float core=exp(-l*l/0.5),w=0.11+0.10*core,band=exp(-b*b/(w*w));
+  float clouds=0.45+0.75*(fbm(q*2.6+vec3(2.1,7.3,4.4),6)*0.5+0.5),grain=0.8+0.4*(fbm(d*18.0+vec3(9.1),4)*0.5+0.5);
+  float lane=smoothstep(0.5,0.9,ridged(q*vec3(2.6,2.6,3.2)+vec3(5.5,1.3,8.8),5))*exp(-b*b/(0.3*w*w));
+  float I=band*(0.35+0.65*core)*clouds*grain*(1.0-0.85*lane)+exp(-(l*l+b*b*5.0)/0.06)*1.6+0.015*exp(-b*b/0.6);
+  vec3 col=mix(mix(vec3(0.82,0.88,1.0),vec3(1.0,0.84,0.62),core*0.9),vec3(0.45,0.33,0.25),lane*0.5);
+  gl_FragColor=vec4(sqrt(clamp(col*I*0.4,0.0,1.0)),1.0);}`; // 0.4: headroom for the bright core
