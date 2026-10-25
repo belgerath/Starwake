@@ -49,11 +49,18 @@ Found along the way, for later steps:
 - Nose up (tail-down), the chase camera hangs below the ship and sees only sky. Step 5 needs a landing camera that looks down past the hull.
 - Map view stays centred on Veyra even in orbit around Tal, so Tal is off-screen. Step 4 should centre the map on the body you are orbiting.
 
-### 3. Ground detail and performance
+### 3. Ground detail and performance (done)
 
 - Extra layers of small craters and roughness below what the orbit maps can show (the maps are about 5 km per pixel), so the ground is not smooth from a few kilometres up. They fade out with distance, so the view from orbit does not change.
 - The ship's shadow falls on the ground: the best height cue there is.
 - Tune for the phone: chunk size, how many chunks are built per frame, cache size, frame rate.
+
+What was built:
+- `talDetail()` in `tal.js`: bowl craters on six grids (20 km down to 210 m cells, craters about 9 km to 70 m across, about a tenth as deep as wide) and roughness from 3 km down to 40 m. Each chunk keeps only what its vertex spacing can show, so nothing changes from orbit (a test checks this) and the chunks under the ship carry the full detail physics uses, to within 1 m.
+- Shading: the "pixelated" look was Tal's 5 km per texel maps being magnified. Up close the colour is now computed per pixel from the bake's own formula (the mare factor rides in the albedo map's alpha), shape comes from the mesh out to where the map is finer, and five octaves of noise (1.8 km to 22 m) vary the colour as you approach. Mesh normals are blurred with a [1 2 1] filter, which removes fine stripes on distant slopes where crater walls are sharper than the vertex spacing.
+- Tried and dropped: bump-mapped lighting from screen-space derivatives. At grazing angles it sparkled along triangle edges.
+- The ship's shadow falls on the ground (the sun's shadow map); shadowed ground keeps 12% of the light, as if bounced from the sunlit ground around it.
+- `?debug` shows frame rate, triangles, draw calls and chunk counts under the readouts. Chunks take 12 to 25 ms to build on a desktop. In a software renderer the new shading costs about 15 to 20% more per frame than step 2. Phone numbers are still needed.
 
 ### 4. Flying relative to the ground
 

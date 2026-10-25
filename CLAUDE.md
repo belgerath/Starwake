@@ -13,7 +13,7 @@ npm run build      # production build into dist/
 npm run preview    # serve dist/ locally
 ```
 
-Add `?debug` to the URL to get `window.starwake = {S, O, actions, W, cam, talAgl}` in the console (state, orbit readouts, actions, world objects, camera, height above Tal's ground; `W.terrain.stats()` shows chunk counts). Useful for headless checks with Playwright.
+Add `?debug` to the URL to get `window.starwake = {S, O, actions, W, cam, talAgl}` in the console (state, orbit readouts, actions, world objects, camera, height above Tal's ground; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
 
 Before finishing any change: `npm test` passes, `npm run build` succeeds, and the change has been looked at in a browser (a phone-sized viewport too if it touches the HUD or controls).
 
@@ -25,7 +25,7 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 | `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, warp limits, orbit prediction. |
 | `src/engine.js` | Renderer, cameras, sky scene (stars, sun), lights, environment map. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
-| `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight`). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
+| `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight` = the bake's `talBase` plus `talDetail`, small craters and roughness that exist only in JS). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
 | `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. |
 | `src/terrain.js`, `src/terrain-build.js`, `src/terrain-worker.js` | Tal's ground: cube-sphere quadtree of chunks that refine as the camera gets closer. Chunks are built from `talHeight` in Web Workers; `terrain-build.js` is pure so tests can check it. |
 | `src/ship/destroyer.js` | The Halberd model, built from primitives in ship units (×`SHIP_SCALE` = metres). |
@@ -75,8 +75,8 @@ Key ideas:
 
 ## Known limits
 
-- Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground is real geometry but smooth below a few kilometres until small-scale detail is added (landing plan, step 3).
-- Ring rocks have no collision. Only the ship casts shadows.
+- Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground has real detail down to craters about 70 m across and roughness at 40 m.
+- Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
 - No fuel, no objectives yet.
 
 ## Roadmap

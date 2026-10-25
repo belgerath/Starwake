@@ -24,7 +24,7 @@ export const MOON_N = Math.sqrt((GM + GM_M) / Math.pow(MOON_A, 3));
 // Tal's terrain. MOON_H (GPU bake) and tal.js (JS, for meshes and collision) both use these.
 export const TAL_SEED = [1.9, 4.4, 6.6];
 export const TAL_RELIEF = 0.02 * MOON_R; // metres per unit of baked height, the same relief the normal map shows
-export const TAL_MAX_H = 0.3 * TAL_RELIEF; // no ground on Tal is higher than this above MOON_R (about 9.8 km)
+export const TAL_MAX_H = 0.35 * TAL_RELIEF; // no ground on Tal is further than this from MOON_R, up or down (about 11.5 km)
 export const TAL_START_ALT = 30e3;       // "Start above Tal": circular orbit this high above the mean radius
 
 // Tal's terrain mesh: a cube-sphere quadtree of chunks, each GRID × GRID vertices. A chunk splits

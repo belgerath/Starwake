@@ -64,9 +64,25 @@ export function craters(px, py, pz, density) {
   let h = 0;
   for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
     hash3(ix + x, iy + y, iz + z); if (hz > density) continue;
-    const dd = Math.hypot(x + hx - fx, y + hy - fy, z + hz - fz), rad = 0.18 + 0.3 * hx, t = dd / rad;
+    const ex = x + hx - fx, ey = y + hy - fy, ez = z + hz - fz, rad = 0.18 + 0.3 * hx, t = Math.sqrt(ex * ex + ey * ey + ez * ez) / rad;
     if (t < 1) { const t2 = t * t, t4 = t2 * t2, t8 = t4 * t4; h += (1.25 * (0.3 * t2 + 0.7 * t8 * t8) - 0.9) * rad; }
-    else h += rad * 0.35 * Math.exp(-(t - 1) * (t - 1) * 12);
+    else if (t < 2.3) h += rad * 0.35 * Math.exp(-(t - 1) * (t - 1) * 12); // beyond, under 1e-8 of a cell
+  }
+  return h;
+}
+
+// Simple bowl craters for detail below the bake (JS only, no GLSL twin): parabolic bowl about a tenth
+// as deep as it is wide, a low raised rim, inner walls up to about 22°. Some are worn shallower.
+// Heights in cell units, like craters().
+export function bowls(px, py, pz, density) {
+  const ix = Math.floor(px), iy = Math.floor(py), iz = Math.floor(pz), fx = px - ix, fy = py - iy, fz = pz - iz;
+  let h = 0;
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+    hash3(ix + x, iy + y, iz + z); if (hz > density) continue;
+    const ex = x + hx - fx, ey = y + hy - fy, ez = z + hz - fz, rad = 0.15 + 0.3 * hx, d2 = ex * ex + ey * ey + ez * ez;
+    if (d2 > 4.84 * rad * rad) continue; // beyond 2.2 radii the rim has died away
+    const t = Math.sqrt(d2) / rad, k = rad * (0.4 + 0.6 * hy);
+    h += t < 1 ? k * (0.2 * t * t - 0.15) : k * 0.05 * Math.exp(-(t - 1) * (t - 1) * 8);
   }
   return h;
 }

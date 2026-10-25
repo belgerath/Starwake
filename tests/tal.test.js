@@ -3,7 +3,8 @@
 // `npm run check:tal`; rerun that after changing NOISE or MOON_H (shaders.js), noise.js or tal.js.
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
-import {talBase, talHeight} from '../src/tal.js';
+import {talBase, talHeight, talDetail} from '../src/tal.js';
+import {TAL_MAX_H} from '../src/config.js';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/tal-bake.json', import.meta.url), 'utf8'));
 
@@ -19,6 +20,15 @@ describe('Tal terrain', () => {
     for (const [x, y, z] of fixture.samples) { const h = talHeight(x, y, z); lo = Math.min(lo, h); hi = Math.max(hi, h); }
     expect(lo).toBeLessThan(-4000); expect(hi).toBeGreaterThan(3000);
     expect(lo).toBeGreaterThan(-12000); expect(hi).toBeLessThan(12000);
+    expect(Math.max(-lo, hi)).toBeLessThan(TAL_MAX_H - 1000); // culling and the hard deck rely on this bound
+  });
+  it('keeps small-scale detail out of what is seen from orbit', () => {
+    // Chunks with vertices 5 km or more apart (all that is drawn from a few hundred km up) get none of
+    // it, so Tal from orbit still matches the bake; vertices 10 m apart get all of it.
+    for (const [x, y, z] of fixture.samples.slice(0, 50)) {
+      expect(talDetail(x, y, z, 5000)).toBe(0);
+      expect(Math.abs(talDetail(x, y, z, 10) - talDetail(x, y, z))).toBeLessThan(1);
+    }
   });
   it('has no cliffs: a 200 km walk in 10 m steps never climbs more than 45°', () => {
     // Crater rims used to be a sheer step (over 1 km on this walk). Inner walls now peak around 30°.

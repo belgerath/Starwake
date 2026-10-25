@@ -33,6 +33,15 @@ setNotifier(toast);
 initInput(actions);
 initHud(actions);
 
+// ?debug: frame rate and terrain numbers under the readouts, for checking performance on a phone.
+let dbg = null, dbgT0 = 0, dbgN = 0, dbgTris = 0, dbgCalls = 0;
+function updateDebug(now) {
+  dbgN++; const el = (now - dbgT0) / 1000; if (el < 0.5) return;
+  const t = W.terrain.stats();
+  dbg.textContent = `${Math.round(dbgN / el)} fps · ${(el / dbgN * 1000).toFixed(1)} ms · ${(dbgTris / 1000).toFixed(0)}k tris · ${dbgCalls} draws · chunks ${t.drawn}/${t.built} · queue ${t.queued + t.inFlight} · level ${t.deepest}`;
+  dbgT0 = now; dbgN = 0;
+}
+
 let last = 0, rt = 0;
 function frame(now) {
   const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now; rt += dt;
@@ -45,6 +54,7 @@ function frame(now) {
   updatePrediction(dt);
   skyG.position.copy(cam.position);
   renderer.clear(); renderer.render(skyScene, cam); renderer.clearDepth(); renderer.render(scene, cam);
+  if (dbg) { dbgTris = renderer.info.render.triangles; dbgCalls = renderer.info.render.calls; updateDebug(now); }
   if (S.camMode === 1) { updateBridge(W.bridge, dt, rt); renderer.clearDepth(); renderer.render(W.bridge.IS, icam); }
   refreshUI(); updateHud(); updateMarkers();
   requestAnimationFrame(frame);
@@ -54,6 +64,9 @@ setTimeout(() => { // let the intro card paint before the GPU bakes the planet
   try { buildWorld(); } catch (err) { console.error(err); setStatus('Could not build the world on this device.'); return; }
   initOrbit(sunDir); setMode(0); initMarkers(actions);
   ready = true; setReady();
-  if (new URLSearchParams(location.search).has('debug')) window.starwake = {S, O, actions, W, cam, talAgl};
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.starwake = {S, O, actions, W, cam, talAgl};
+    dbg = document.createElement('div'); dbg.id = 'dbg'; document.getElementById('hud').appendChild(dbg);
+  }
   requestAnimationFrame(frame);
 }, 40);

@@ -1,12 +1,13 @@
 // Tal's ground: a cube-sphere quadtree of chunks that split as the camera gets closer, so detail
 // follows you down. Chunks are built from tal.js (in Web Workers when available), so the ground you
-// see is the ground physics collides with. Colours and far-away shading come from Tal's baked maps.
+// see is the ground physics collides with. Colours and far-away shading come from Tal's baked maps;
+// see TERRAIN_FRAG for how close-up detail takes over. The ship's shadow falls on the ground.
 //
 // Precision: chunk vertices are relative to the chunk's centre, and three.js composes object
 // transforms in doubles, so with the floating origin a chunk near the ship has a small translation
 // and float32 on the GPU stays precise near the camera.
 import * as THREE from 'three';
-import {MOON_R, TAL_MAX_H, TERRAIN_MAX_LEVEL, TERRAIN_SPLIT, TERRAIN_CACHE, SUN_I} from './config.js';
+import {MOON_R, TAL_MAX_H, TAL_RELIEF, TERRAIN_MAX_LEVEL, TERRAIN_SPLIT, TERRAIN_CACHE, SUN_I} from './config.js';
 import {buildChunk, chunkIndex, chunkSpan, chunkSize, faceDir} from './terrain-build.js';
 import {TERRAIN_VERT, TERRAIN_FRAG} from './shaders.js';
 import {sunDir} from './engine.js';
@@ -23,9 +24,9 @@ function makeNode(face, level, ix, iy, parent) {
 
 export function createTerrain(parent, albedoMap, normalMap) {
   const group = new THREE.Group(); parent.add(group);
-  const uniforms = {albedoMap: {value: albedoMap}, normalMap: {value: normalMap}, sunDir: {value: sunDir}, sunI: {value: SUN_I},
-    objRot: {value: new THREE.Matrix3()}, moonC: {value: new THREE.Vector3()}, mapFade: {value: new THREE.Vector2(80e3, 200e3)}};
-  const material = new THREE.ShaderMaterial({uniforms, vertexShader: TERRAIN_VERT, fragmentShader: TERRAIN_FRAG, extensions: {derivatives: true}});
+  const uniforms = Object.assign(THREE.UniformsUtils.clone(THREE.UniformsLib.lights), {albedoMap: {value: albedoMap}, normalMap: {value: normalMap},
+    sunDir: {value: sunDir}, sunI: {value: SUN_I}, relief: {value: TAL_RELIEF}, pixAng: {value: 1e-3}, moonR: {value: MOON_R}, objRot: {value: new THREE.Matrix3()}, moonC: {value: new THREE.Vector3()}});
+  const material = new THREE.ShaderMaterial({uniforms, vertexShader: TERRAIN_VERT, fragmentShader: TERRAIN_FRAG, lights: true, extensions: {derivatives: true}});
   const index = new THREE.BufferAttribute(chunkIndex(), 1);
   const roots = [0, 1, 2, 3, 4, 5].map(f => makeNode(f, 0, 0, 0, null));
   const built = new Set(), queue = new Set(), jobs = new Map();
@@ -35,7 +36,7 @@ export function createTerrain(parent, albedoMap, normalMap) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(c.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(c.nor, 3)); g.setIndex(index);
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), c.radius);
-    const m = new THREE.Mesh(g, material); m.position.fromArray(c.center); m.matrixAutoUpdate = false; m.updateMatrix(); m.visible = false;
+    const m = new THREE.Mesh(g, material); m.position.fromArray(c.center); m.matrixAutoUpdate = false; m.updateMatrix(); m.visible = false; m.receiveShadow = true;
     group.add(m); n.mesh = m; n.minH = c.minH; n.maxH = c.maxH; n.state = 2; n.used = frame; built.add(n);
   }
   for (const n of roots) attach(n, buildChunk(n.face, 0, 0, 0)); // Tal must always have something to draw
@@ -106,9 +107,11 @@ export function createTerrain(parent, albedoMap, normalMap) {
     }
   }
 
-  // Per frame, after the scene's matrices are updated: Tal's rotation and centre for the shader.
-  function updateUniforms(moon) {
+  // Per frame, after the scene's matrices are updated: Tal's rotation and centre, and the angle one
+  // pixel covers (for fading detail in and out).
+  function updateUniforms(moon, cam, heightPx) {
     uniforms.objRot.value.setFromMatrix4(moon.matrixWorld); moon.getWorldPosition(uniforms.moonC.value);
+    uniforms.pixAng.value = 2 * Math.tan(cam.fov * Math.PI / 360) / Math.max(heightPx, 1);
   }
 
   return {group, material, update, updateUniforms, stats: () => ({drawn: drawn.length, built: built.size, queued: queue.size, inFlight: jobs.size, deepest: drawn.reduce((m, n) => Math.max(m, n.level), 0)})};
