@@ -1,6 +1,6 @@
 # Starwake
 
-A 3D space exploration game with real-scale, Newtonian flight. You fly the Halberd (DD-07), a 400 m destroyer, around Veyra (an Earth-sized ringed planet) and its moon Tal. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
+A 3D space exploration game with real-scale, Newtonian flight. You fly a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
 
 ## Commands
 
@@ -21,17 +21,18 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 
 | File | Responsibility |
 |---|---|
-| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, ship, handling, terrain. Plain numbers, no three.js (the terrain worker imports it). |
-| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue, landing (contact points, touchdown rules, landed state, take-off, crash checkpoint). |
-| `src/engine.js` | Renderer, cameras, sky scene and sun, lights, environment map. |
+| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, terrain, landing limits, and ships as data: `TRANSPORT` (thrust, turn rates, gear, contact points, camera framing; `SHIP` is the one the player flies) and `HALBERD` (its model). Plain numbers, no three.js (the terrain worker imports it). |
+| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, hover mode (`setHover`), warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue, landing (contact points, touchdown rules, landed state, take-off, crash checkpoint). Reads the ship from `SHIP`. |
+| `src/engine.js` | Renderer, cameras, sky scene and sun, lights (the sun's shadow box is sized to the ship), environment map. |
 | `src/sky.js` | Stars (realistic brightness and colour spread), the Milky Way glow (baked once), and the exposure that dims them when something bright fills the view. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
 | `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight` = the bake's `talBase` plus `talDetail`, small craters and roughness that exist only in JS). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
 | `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. |
 | `src/terrain.js`, `src/terrain-build.js`, `src/terrain-worker.js` | Tal's ground: cube-sphere quadtree of chunks that refine as the camera gets closer. Chunks are built from `talHeight` in Web Workers; `terrain-build.js` is pure so tests can check it. |
-| `src/ship/destroyer.js` | The Halberd model, built from primitives in ship units (×`SHIP_SCALE` = metres), with its landing legs (`setLegs`). Leg and hull contact points are in `config.js`. |
-| `src/ship/bridge.js` | Bridge interior (its own scene and camera) and its live screens and dials. |
-| `src/camera.js` | Chase, bridge and map views; chase blends into a landing view while the legs are down. |
+| `src/ship/transport.js` | The player's ship, built from primitives in metres: saucer hull, cargo prongs, cockpit pod, engine band, lift thrusters, landing gear (`setLegs`), two small turrets. |
+| `src/ship/destroyer.js` | The Halberd, the navy's destroyer (not in the game until phase 2), in ship units (×`HALBERD.scale` = metres). Also exports the hull panel textures and box helpers both models use. |
+| `src/ship/bridge.js` | Cockpit interior (its own scene and camera) and its live screens and dials. |
+| `src/camera.js` | Chase, cockpit and map views; chase blends into a landing view while the gear is down. |
 | `src/input.js` | Keyboard, mouse, touch gestures, on-screen buttons. Produces the input for `stepFlight`. |
 | `src/hud.js` | HTML overlay: readouts, markers, flight-computer buttons, toasts, braking cue, touchdown light, intro and crash cards. Reads state each frame. |
 | `src/main.js` | Wiring and the frame loop. |
@@ -52,26 +53,28 @@ Key ideas:
 
 - Newtonian: thrust changes velocity, nothing slows the ship but engines or atmosphere. Gravity from Veyra and Tal. Start: circular 400 km orbit, about 7.35 km/s, 91 min period.
 - Tal is close and heavy, so its tides stretch a low orbit by roughly ±15 km per lap. That is physical, not an integrator bug (warp levels agree to within metres).
-- Rotation is rate-command with attitude hold: max 8°/s pitch and yaw, 10°/s roll; thrusters stop a turn in under half a second (~1.7° overshoot). A 180° flip takes about 25 to 30 s. Values in `RATE`/`ACC`.
+- The transport starts weak, to be upgraded later: main engine 4 m/s² (0.4 g; Boost doubles it), lift thrusters 4 m/s², retro thrusters 1 m/s². Enough to land on Tal (1.5 m/s²), not on Veyra (9.6). Values in `TRANSPORT`.
+- Rotation is rate-command with attitude hold: max about 10°/s pitch, 8°/s yaw, 14°/s roll; thrusters stop a turn in under half a second (~1.2° overshoot). A 180° flip takes about 22 s. Values in `TRANSPORT.rate`/`acc`.
 - Stick and mouse use an expo curve (`0.25v + 0.75v³`) for fine control near centre.
 - Flight computer holds: prograde, retrograde, face Veyra, face Tal. Any manual steering cancels holds and time warp.
 - Below 20 km over Tal (`SURFACE_ALT`) speeds, the prograde/retrograde holds and the velocity markers are relative to Tal's turning ground (up to 113 m/s at its equator), and the readouts switch to ground speed, height, horizontal speed and time to impact.
-- Braking cue: the latest moment a full-thrust retrograde burn can start and still stop with the stern `BRAKE_CLEAR` (150 m) above the ground ("Brake in 14 s", then "Brake now"). Tested: burning on the cue stops 100 to 160 m up.
+- Braking cue: the latest moment a full-thrust retrograde burn can start and keep the ship's lowest point at least `BRAKE_CLEAR` (150 m) above the ground all along the burn ("Brake in 14 s", then "Brake now"). It works from 60 km down (`CUE_ALT`), because with the weak engine braking from orbit takes minutes, and checks a profile of the ground along the whole path. Tested over many deorbit burns: burning on the cue never comes within about 120 m of the ground and mostly stops 130 to 310 m up; shallow paths stop higher (up to 1.3 km), because a ridge on the way decides when to brake.
 - Low over Tal, Retrograde leans toward upright as the ship slows (`UP_BIAS`, below 30 m/s), so it ends up standing on its tail at a hover and leans against any drift.
+- Hover mode (low over Tal, below 20 km): the thrust slider drives the belly lift thrusters (hover at about 37%). Whenever the stick is let go, the ship levels itself and leans up to 15° against drift, so it comes to a stop over the ground; steering tilts it to move. Switched on nose-up after a braking burn, the main engine carries part of the thrust while the ship swings level, so it does not drop. Prograde and Retrograde are off while hovering. Turning hover on starts at hover thrust; off cuts the thrust.
 - Time warp 1×, 10×, 100×, 1000×; limited to 100× in the atmosphere, 10× within 5 km of Tal's ground, and lower when a surface is coming up. Any warp once landed.
 - Hard deck at 15 km on Veyra until landing there exists.
-- Landing on Tal is tail-down on four legs at the stern. They deploy below 3 km (`LEG_ALT`) and stow again above 3.45 km. Touchdown limits: under 3 m/s down, 1.5 m/s sideways, 8° from upright, on ground sloping under 12°; 3 to 6 m/s down is a hard landing (a warning). Anything else, or any hull point touching the ground, is a crash: a card says why, with Try again (checkpoint saved passing 15 km on the way down, and at each landing) and Back to orbit. No damage model.
-- Landed, the pose is fixed in Tal's body frame, so the ship turns with the ground at any warp. Thrust above hover (Tal's gravity is 1.5 m/s², about 6% throttle) takes off.
-- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint. If a change fails one of these, it changed how the ship flies: confirm it is intended.
+- Landing on Tal is belly-down on four gear legs, which come down below 1.5 km (`gearAlt`) and go up above 1.7 km. Touchdown limits: under 3 m/s down, 1.5 m/s sideways, tilted under 8°, on ground sloping under 12°; 3 to 6 m/s down is a hard landing (a warning). Anything else, or any hull point touching the ground, is a crash: a card says why, with Try again (checkpoint saved passing 15 km on the way down, and at each landing) and Back to orbit. No damage model.
+- Landed, the pose is fixed in Tal's body frame, so the ship turns with the ground at any warp. Lift above hover takes off.
+- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, hover (levels and stops drift, steering moves it, switching on nose-up keeps height) and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint. If a change fails one of these, it changed how the ship flies: confirm it is intended.
 
 ## Controls (touch is the primary target)
 
 - One finger anywhere: steering stick appears where the finger lands. With **Look** on, one finger moves the camera instead.
 - Two thumbs: twist like a steering wheel to roll (clockwise rolls right; ~4° dead zone, full rate at ~26°), pinch to zoom.
 - Map view: one finger rotates the map, pinch zooms.
-- Right side: thrust slider and Boost (double thrust while held). With the legs down the slider (and W/S) covers 0 to 18% ("Fine", with a green mark at hover); a burn already above that keeps going until you touch it, and Z and Boost still give full power. Left side: time warp, Prograde, Retrograde, Roll buttons.
+- Right side: thrust slider and Boost (double thrust while held). In hover mode the slider is "Lift", with a green mark at hover. Left side: time warp, Prograde, Retrograde, Roll buttons, and Hover above them when low over Tal.
 - Tap Veyra, Tal or the green motion markers to have the flight computer face them.
-- Keyboard: W/S thrust, Z/X full/cut, A/D yaw, arrows pitch, Q/E roll, Shift boost, Space retro, F/R holds, `,`/`.` warp, C cycle camera, M map, Esc pause.
+- Keyboard: W/S thrust, Z/X full/cut, A/D yaw, arrows pitch, Q/E roll, Shift boost, Space retro, F/R holds, G hover, `,`/`.` warp, C cycle camera, M map, Esc pause.
 
 ## Style
 
@@ -84,10 +87,14 @@ Key ideas:
 - Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground has real detail down to craters about 70 m across and roughness at 40 m.
 - Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
 - No fuel, no objectives yet. Landing only on Tal.
+- The cockpit view reuses the old destroyer bridge interior, which is roomier than the transport's pod.
 
 ## Roadmap
 
-1. **Landing on Tal**: works (steps 1 to 5); polish next (step 6). Plan, decisions and status in `docs/tal-landing-plan.md`.
-2. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent).
-3. **Core loop**: fuel and delta-v budget so burns cost something; places worth reaching (survey sites, a station to refuel and dock with, wrecks).
-4. Later: more of the system, then other star systems.
+You fly a **small smuggler's transport** with contraband in the hold and small guns, slow at first and upgradable. The first mission docks at a huge station for outcasts and misfits (automatic docking once you are close), clears an easy customs check in a hangar full of aliens (from free 3D asset packs), and sells the cargo. The Halberd stays as a navy destroyer on patrol. The full plan, with the first mission, phases and open decisions, is `docs/game-plan.md`.
+
+1. **Landing on Tal**: works. Built in `docs/tal-landing-plan.md` (for the Halberd), then moved to the transport.
+2. **The new ship**: done (phase 1): the model, weak handling as data, hover mode, belly-down landing on Tal.
+3. **The station and docking**: a huge station in Veyra orbit, "Request docking?", automatic docking into its bay, the Halberd on patrol, saving.
+4. **The hangar**: aliens, customs, selling the contraband; the first mission end to end.
+5. **Upgrades and jobs**, then **trouble** (navy scans, raiders, fights), then **Veyra** (re-entry, landing at cities), then further out.

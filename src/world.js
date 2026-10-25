@@ -1,17 +1,17 @@
 // Everything in the universe that gets drawn: Veyra (surface, clouds, atmosphere), the ring and
-// its local rocks, Tal (terrain.js), the orbit lines for map view, and the ship.
+// its local rocks, Tal (terrain.js), the orbit lines for map view, and the player's ship (ship/transport.js).
 //
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
 import * as THREE from 'three';
-import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, A_MAIN, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
+import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
 import {scene, sunDir, sunLight, hemi, makeEnv, renderer, cam} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
 import {S, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
 import {createTerrain} from './terrain.js';
-import {buildDestroyer} from './ship/destroyer.js';
+import {buildTransport} from './ship/transport.js';
 import {buildBridge} from './ship/bridge.js';
 
 const V3 = THREE.Vector3;
@@ -69,7 +69,7 @@ export function buildWorld() {
   W.orbitLine = new THREE.Line(og, new THREE.LineBasicMaterial({color: lin(0xffb14a), toneMapped: false, depthWrite: false, transparent: true})); W.orbitLine.frustumCulled = false; W.world.add(W.orbitLine);
   W.rocks = new THREE.InstancedMesh(rockGeo(55, 2), new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.95, metalness: 0.05, flatShading: true}), ROCK_MAX);
   W.rocks.frustumCulled = false; W.rocks.count = 0; W.rocks.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(W.rocks);
-  W.ship = buildDestroyer(); scene.add(W.ship.root);
+  W.ship = buildTransport(); scene.add(W.ship.root);
   W.heatSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex([[0, 'rgba(255,240,210,1)'], [0.25, 'rgba(255,150,60,0.7)'], [0.6, 'rgba(255,80,20,0.15)'], [1, 'rgba(255,60,0,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, opacity: 0}));
   W.heatSpr.visible = false; scene.add(W.heatSpr);
   W.bridge = buildBridge(env);
@@ -96,14 +96,18 @@ export function updateWorld(dt, rt) {
   sunLight.intensity = SUN_I * S.lit; radialOut(tV); hemi.position.copy(tV);
   const sub = tV.copy(S.pos).normalize().dot(sunDir); hemi.intensity = 0.55 * clamp(sub * 1.5 + 0.35, 0, 1) * Math.pow(R / S.pos.length(), 2);
   for (const m of ship.mats) m.envMapIntensity = 0.12 + 0.88 * S.lit;
-  const f = S.aMain / A_MAIN;
-  for (const fl of ship.flames) { fl.visible = f > 0.01; fl.scale.y = 0.15 + f * 0.9 + Math.random() * 0.06; fl.material.opacity = fl.userData.op * (0.6 + Math.min(f, 1) * 0.4); }
-  for (const g of ship.glows) { const s = g.userData.base * (0.25 + Math.min(f, 2) * 0.55 + Math.random() * 0.04); g.scale.set(s, s, 1); }
+  // Engine and lift thruster flames, sized by what each is pushing (1 = full throttle, 2 = Boost).
+  const engines = (f, flames, glows, len) => {
+    for (const fl of flames) { fl.visible = f > 0.01; fl.scale.y = len * (0.15 + f * 0.9 + Math.random() * 0.06); fl.material.opacity = fl.userData.op * (0.6 + Math.min(f, 1) * 0.4); }
+    for (const g of glows) { const s = g.userData.base * (0.25 + Math.min(f, 2) * 0.55 + Math.random() * 0.04); g.scale.set(s, s, 1); }
+  };
+  const f = S.aMain / SHIP.aMain; engines(f, ship.flames, ship.glows, ship.flameLen);
+  if (ship.lift) engines(S.aLift / SHIP.aLift, ship.lift.flames, ship.lift.glows, ship.lift.len);
   ship.eLight.intensity = 2.5 * Math.min(f, 2);
   if (S.heat > 0.01 && S.camMode !== 2) {
     vAir.crossVectors(omegaP, S.pos); vAir.subVectors(S.vel, vAir).normalize();
-    W.heatSpr.visible = true; W.heatSpr.position.copy(vAir).multiplyScalar(240);
-    const hs = 700 * (0.4 + 0.6 * Math.sqrt(S.heat)); W.heatSpr.scale.set(hs, hs, 1); W.heatSpr.material.opacity = Math.min(1, S.heat * 1.2);
+    W.heatSpr.visible = true; W.heatSpr.position.copy(vAir).multiplyScalar(0.6 * SHIP.length);
+    const hs = 1.75 * SHIP.length * (0.4 + 0.6 * Math.sqrt(S.heat)); W.heatSpr.scale.set(hs, hs, 1); W.heatSpr.material.opacity = Math.min(1, S.heat * 1.2);
   } else W.heatSpr.visible = false;
   W.orbitLine.visible = W.moonLine.visible = S.camMode === 2;
   ship.root.visible = S.camMode !== 2;

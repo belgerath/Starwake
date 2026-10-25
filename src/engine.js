@@ -3,7 +3,7 @@
 // The sky (sun disc here; stars and the Milky Way in sky.js) is a separate scene drawn first with no
 // depth, so it is always behind everything.
 import * as THREE from 'three';
-import {SUN_I, SUN_DIR} from './config.js';
+import {SUN_I, SUN_DIR, SHIP} from './config.js';
 import {glowTex} from './util.js';
 
 export const app = document.getElementById('app');
@@ -39,12 +39,13 @@ sunDisc.position.copy(sunDir).multiplyScalar(2900); skyG.add(sunDisc); // 0.53°
 const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex([[0, 'rgba(255,248,230,1)'], [0.1, 'rgba(255,225,180,0.55)'], [0.35, 'rgba(255,190,120,0.1)'], [1, 'rgba(255,150,80,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false}));
 sunGlow.scale.set(520, 520, 1); sunGlow.position.copy(sunDisc.position); skyG.add(sunGlow);
 
-// ---- lights (the ship is always near the origin, so the shadow box stays small) ----
+// ---- lights (the ship is always near the origin, so the shadow box only has to fit the ship) ----
+// The box is a little wider than the ship; its depth reaches the ground about 1 km below at a low sun.
 export const sunLight = new THREE.DirectionalLight(0xfff3e0, SUN_I);
 sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048);
-{ const sc = sunLight.shadow.camera; sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 10; sc.far = 6000; }
-sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.4;
-sunLight.position.copy(sunDir).multiplyScalar(3000); scene.add(sunLight); scene.add(sunLight.target);
+{ const sc = sunLight.shadow.camera, half = 0.8 * SHIP.length; sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 1; sc.far = 3000; }
+sunLight.shadow.bias = -0.00004; sunLight.shadow.normalBias = 0.04;
+sunLight.position.copy(sunDir).multiplyScalar(300); scene.add(sunLight); scene.add(sunLight.target);
 export const hemi = new THREE.HemisphereLight(0x000000, 0x6d8db8, 0); // planet-shine from below
 scene.add(hemi);
 scene.add(new THREE.AmbientLight(0xffffff, 0.015));

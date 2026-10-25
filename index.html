@@ -35,10 +35,13 @@
     <div id="markers"></div>
     <div class="vm" id="vmPro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 2v6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/></svg></div>
     <div class="vm" id="vmRetro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 11l8 8M19 11l-8 8M15 28v-6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/></svg></div>
-    <div class="shipmk" id="shipMk" hidden><i></i><span>Halberd</span></div>
+    <div class="shipmk" id="shipMk" hidden><i></i><span>You</span></div>
     <div id="toast" role="status"></div>
     <div id="fstick" hidden><div id="fknob"></div></div>
     <div class="fc" id="fc">
+      <div class="row" id="hoverRow" hidden>
+        <button class="chip" id="hoverBtn" type="button" aria-pressed="false">Hover</button>
+      </div>
       <div class="row">
         <button class="chip sq" id="warpDn" type="button" aria-label="Slow down time">−</button>
         <div class="wlab" id="wlab"><span class="lab">Time</span><span id="warpVal">1×</span></div>
@@ -67,10 +70,10 @@
         <p class="sub">Phase 1 · Flight test</p>
         <h1 class="wordmark">Starwake</h1>
       </div>
-      <p>The Halberd, a 400 m destroyer, is in orbit 400 km above Veyra at over 7 km/s. The physics are real: nothing slows you down except your own engines, and gravity bends your path into an orbit. To slow down, hold Retrograde and burn. Use time warp to cross the distances.</p>
-      <p>Over Tal the landing legs come down below 3 km. Touch down slower than 3 m/s, upright, on level ground. Retrograde stands the ship on its tail as you slow to a hover.</p>
+      <p>Your ship, a battered 35 m transport with a hold full of contraband, is in orbit 400 km above Veyra at over 7 km/s. Its engine is weak for now, so burns take a while. The physics are real: nothing slows you down except your own engines, and gravity bends your path into an orbit. To slow down, hold Retrograde and burn. Use time warp to cross the distances.</p>
+      <p>To land on Tal, brake to a stop low over the ground, then tap Hover: the belly thrusters hold you up and the ship levels itself when you let go of the stick. Touch down slower than 3 m/s, level, on flat ground.</p>
       <dl class="keys" id="keysKb">
-        <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down (0 to 18% with the legs down)</dd>
+        <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down</dd>
         <dt><kbd>Z</kbd><kbd>X</kbd></dt><dd>Full thrust, cut engines</dd>
         <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>Turn left and right</dd>
         <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Nose up and down</dd>
@@ -78,6 +81,7 @@
         <dt><kbd>Shift</kbd></dt><dd>Boost: double thrust while held</dd>
         <dt><kbd>Space</kbd></dt><dd>Retro thrusters</dd>
         <dt><kbd>F</kbd><kbd>R</kbd></dt><dd>Hold prograde, hold retrograde</dd>
+        <dt><kbd>G</kbd></dt><dd>Hover on the belly thrusters (low over Tal)</dd>
         <dt><kbd>,</kbd><kbd>.</kbd></dt><dd>Slow down, speed up time</dd>
         <dt><kbd>C</kbd><kbd>M</kbd></dt><dd>Cycle cameras, map view</dd>
         <dt><kbd>Click a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
@@ -88,10 +92,11 @@
         <dt><kbd>One finger</kbd></dt><dd>Steer from anywhere on screen</dd>
         <dt><kbd>Two thumbs</kbd></dt><dd>Twist like a steering wheel to roll, pinch to zoom</dd>
         <dt><kbd>Look</kbd></dt><dd>One finger moves the camera instead of steering</dd>
-        <dt><kbd>Right slider</kbd></dt><dd>Engine thrust (0 to 18% with the legs down, for hovering)</dd>
+        <dt><kbd>Right slider</kbd></dt><dd>Engine thrust, or lift when hovering</dd>
         <dt><kbd>Boost</kbd></dt><dd>Double thrust while held</dd>
         <dt><kbd>Roll</kbd></dt><dd>Hold to roll left or right</dd>
         <dt><kbd>Prograde</kbd></dt><dd>Point along or against your motion</dd>
+        <dt><kbd>Hover</kbd></dt><dd>Low over Tal: belly thrusters for landing</dd>
         <dt><kbd>Tap a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
         <dt><kbd>Time</kbd></dt><dd>Speed up or slow down time</dd>
         <dt><kbd>Chase</kbd></dt><dd>Switch to bridge or map (drag to rotate the map)</dd>
@@ -107,7 +112,7 @@
   <div id="crash" class="overlay" hidden>
     <div class="card" role="alertdialog" aria-labelledby="crashTitle" aria-describedby="crashMsg">
       <div>
-        <p class="sub">Halberd lost</p>
+        <p class="sub">Ship lost</p>
         <h2 class="wordmark" id="crashTitle">Crashed</h2>
       </div>
       <p id="crashMsg"></p>

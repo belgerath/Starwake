@@ -1,11 +1,12 @@
-// The Halberd (DD-07): a 400 m destroyer built from primitives in "ship units" (about 14 long),
-// scaled to metres by SHIP_SCALE. Panel textures are drawn on a canvas at load.
+// The Halberd (DD-07): the navy's 400 m destroyer, built from primitives in "ship units" (about 14 long),
+// scaled to metres by HALBERD.scale. Panel textures are drawn on a canvas at load (shared with transport.js).
 import * as THREE from 'three';
-import {SHIP_SCALE,UVS,LEG_HINGES,LEG_FEET} from '../config.js';
+import {HALBERD,UVS} from '../config.js';
+const SHIP_SCALE=HALBERD.scale;
 import {lin,rng,glowTex} from '../util.js';
 import {ANISO} from '../engine.js';
 
-function panelTextures(){const SZ=1024;const c=document.createElement('canvas');c.width=c.height=SZ;const g=c.getContext('2d');const rc=document.createElement('canvas');rc.width=rc.height=SZ;const rg=rc.getContext('2d');
+export function panelTextures(){const SZ=1024;const c=document.createElement('canvas');c.width=c.height=SZ;const g=c.getContext('2d');const rc=document.createElement('canvas');rc.width=rc.height=SZ;const rg=rc.getContext('2d');
   const r=rng(9);
   g.fillStyle='#4f565d';g.fillRect(0,0,SZ,SZ);rg.fillStyle='#d0d0d0';rg.fillRect(0,0,SZ,SZ);
   function split(x,y,w,h,depth){
@@ -22,13 +23,13 @@ function panelTextures(){const SZ=1024;const c=document.createElement('canvas');
   const rough=new THREE.CanvasTexture(rc);rough.wrapS=rough.wrapT=THREE.RepeatWrapping;rough.anisotropy=ANISO;
   return{map,rough}}
 
-function boxUV(g){const p=g.attributes.position,n=g.attributes.normal,uv=new Float32Array(p.count*2);
+export function boxUV(g,s=UVS){const p=g.attributes.position,n=g.attributes.normal,uv=new Float32Array(p.count*2);
   for(let i=0;i<p.count;i++){const ax=Math.abs(n.getX(i)),ay=Math.abs(n.getY(i)),az=Math.abs(n.getZ(i));let u,v;
     if(ax>=ay&&ax>=az){u=p.getZ(i);v=p.getY(i)}else if(ay>=az){u=p.getX(i);v=p.getZ(i)}else{u=p.getX(i);v=p.getY(i)}
-    uv[i*2]=u/UVS;uv[i*2+1]=v/UVS}
+    uv[i*2]=u/s;uv[i*2+1]=v/s}
   g.setAttribute('uv',new THREE.BufferAttribute(uv,2));return g}
-function bbox(w,h,d,b=0.05){const s=new THREE.Shape(),hw=w/2-b,hh=h/2-b;s.moveTo(-hw,-hh);s.lineTo(hw,-hh);s.lineTo(hw,hh);s.lineTo(-hw,hh);s.closePath();
-  const dd=Math.max(0.001,d-2*b);const g=new THREE.ExtrudeGeometry(s,{depth:dd,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,steps:1});g.translate(0,0,-dd/2);return boxUV(g)}
+export function bbox(w,h,d,b=0.05,uv=UVS){const s=new THREE.Shape(),hw=w/2-b,hh=h/2-b;s.moveTo(-hw,-hh);s.lineTo(hw,-hh);s.lineTo(hw,hh);s.lineTo(-hw,hh);s.closePath();
+  const dd=Math.max(0.001,d-2*b);const g=new THREE.ExtrudeGeometry(s,{depth:dd,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,steps:1});g.translate(0,0,-dd/2);return boxUV(g,uv)}
 function textTex(lines,w,h,color){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle=color;g.textBaseline='middle';
   lines.forEach(l=>{g.font=l.f;g.fillText(l.t,l.x,l.y)});const t=new THREE.CanvasTexture(c);t.anisotropy=ANISO;t.encoding=THREE.sRGBEncoding;return t}
 
@@ -115,10 +116,10 @@ export function buildDestroyer(){
     for(const y of [DT+0.35,DT+0.58,DT+0.81])for(let z=0.5;z<2.6;z+=0.17){if(wr()<0.25)continue;winPos.push([s*0.853,y,z,s*Math.PI/2])}});
   // Landing legs: struts hinged at the engine block. Stowed they fold forward along the hull (out of sight,
   // so the ship looks as before in orbit); deployed they swing out and back past the engine bells to stand on
-  // LEG_FEET. setLegs(k) moves them (0 stowed, 1 down).
+  // HALBERD.legFeet. setLegs(k) moves them (0 stowed, 1 down).
   const legs=[],yToZ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2);
-  LEG_HINGES.forEach((h,i)=>{
-    const H=new THREE.Vector3(...h),P=new THREE.Vector3(...LEG_FEET[i]);P.z-=0.04; // pad centre, just above the contact point
+  HALBERD.legHinges.forEach((h,i)=>{
+    const H=new THREE.Vector3(...h),P=new THREE.Vector3(...HALBERD.legFeet[i]);P.z-=0.04; // pad centre, just above the contact point
     const d=P.sub(H),L=d.length();d.normalize();
     const axis=new THREE.Vector3(0,0,-1).cross(d).normalize(),ang=Math.acos(-d.z);
     const g=new THREE.Group();g.position.copy(H);vis.add(g);

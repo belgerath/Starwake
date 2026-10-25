@@ -66,6 +66,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .fc .row{display:flex;gap:6px;align-items:stretch}
 .chip{font-family:var(--f-display);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:4px;height:38px;padding:0 10px;cursor:pointer}
 .chip[aria-pressed="true"]{border-color:var(--go);color:var(--go)}
+.chip:disabled{opacity:.38;cursor:default}
 .chip.roll{display:flex;align-items:center;gap:6px;touch-action:none}
 .chip.roll svg{display:block}
 .chip.roll .flip{display:block;transform:scaleX(-1)}
