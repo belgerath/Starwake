@@ -13,7 +13,7 @@ npm run build      # production build into dist/
 npm run preview    # serve dist/ locally
 ```
 
-Add `?debug` to the URL to get `window.starwake = {S, O, actions, W, cam, talAgl}` in the console (state, orbit readouts, actions, world objects, camera, height above Tal's ground; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
+Add `?debug` to the URL to get `window.starwake = {S, O, actions, W, cam, talAgl, talGroundVel}` in the console (state, orbit readouts, actions, world objects, camera, height above and velocity of Tal's ground; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
 
 Before finishing any change: `npm test` passes, `npm run build` succeeds, and the change has been looked at in a browser (a phone-sized viewport too if it touches the HUD or controls).
 
@@ -22,8 +22,9 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 | File | Responsibility |
 |---|---|
 | `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, ship, handling, terrain. Plain numbers, no three.js (the terrain worker imports it). |
-| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, warp limits, orbit prediction. |
-| `src/engine.js` | Renderer, cameras, sky scene (stars, sun), lights, environment map. |
+| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue. |
+| `src/engine.js` | Renderer, cameras, sky scene and sun, lights, environment map. |
+| `src/sky.js` | Stars (realistic brightness and colour spread), the Milky Way glow (baked once), and the exposure that dims them when something bright fills the view. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
 | `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight` = the bake's `talBase` plus `talDetail`, small craters and roughness that exist only in JS). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
 | `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. |
@@ -54,6 +55,8 @@ Key ideas:
 - Rotation is rate-command with attitude hold: max 8°/s pitch and yaw, 10°/s roll; thrusters stop a turn in under half a second (~1.7° overshoot). A 180° flip takes about 25 to 30 s. Values in `RATE`/`ACC`.
 - Stick and mouse use an expo curve (`0.25v + 0.75v³`) for fine control near centre.
 - Flight computer holds: prograde, retrograde, face Veyra, face Tal. Any manual steering cancels holds and time warp.
+- Below 20 km over Tal (`SURFACE_ALT`) speeds, the prograde/retrograde holds and the velocity markers are relative to Tal's turning ground (up to 113 m/s at its equator), and the readouts switch to ground speed, height, horizontal speed and time to impact.
+- Braking cue: the latest moment a full-thrust retrograde burn can start and still stop at `BRAKE_STOP_H` above the ground ("Brake in 14 s", then "Brake now"). Tested: burning on the cue stops just above the deck.
 - Time warp 1×, 10×, 100×, 1000×; limited to 100× in the atmosphere and lower when a surface is coming up.
 - Hard deck at 15 km on Veyra, and 500 m above the actual ground on Tal, until landing exists.
 - `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping. If a change fails one of these, it changed how the ship flies: confirm it is intended.

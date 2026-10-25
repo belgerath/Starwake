@@ -2,8 +2,8 @@
 // If a change makes one of these fail, it changed how the ship flies: decide on purpose.
 import {describe, it, expect, beforeEach} from 'vitest';
 import * as THREE from 'three';
-import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos} from '../src/physics.js';
-import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, MOON_INC, MOON_FLOOR, TAL_START_ALT, TILT} from '../src/config.js';
+import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT} from '../src/physics.js';
+import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, MOON_INC, MOON_FLOOR, TAL_START_ALT, TILT, BRAKE_STOP_H} from '../src/config.js';
 
 const SUN = new THREE.Vector3(...SUN_DIR).normalize();
 const idle = {pitch: 0, yaw: 0, roll: 0, boost: false, retro: false};
@@ -87,5 +87,34 @@ describe('Tal', () => {
     const q = tal.getWorldQuaternion(new THREE.Quaternion()), p = tal.getWorldPosition(new THREE.Vector3());
     expect(Math.abs(q.dot(talQuat(S.t, new THREE.Quaternion())))).toBeGreaterThan(1 - 1e-9);
     expect(p.distanceTo(moonPos(S.t, new THREE.Vector3()))).toBeLessThan(1);
+  });
+});
+
+describe('flying over Tal\'s ground', () => {
+  const V = () => new THREE.Vector3();
+  beforeEach(() => { initTalOrbit(SUN); });
+  // Put the ship h metres above the ground straight below it, keeping its velocity.
+  const dropTo = h => { const m = moonPos(S.t, V()), up = S.pos.clone().sub(m), r = up.length(), agl = talAgl(S.pos, S.t); S.pos.copy(m).addScaledVector(up, (r - (agl - h)) / r); orbInfo(); };
+  it('Tal\'s equator moves at about 113 m/s', () => {
+    const eq = V().crossVectors(omegaT, new THREE.Vector3(1, 0, 0)).normalize().multiplyScalar(MOON_R).add(moonPos(S.t, V()));
+    expect(talGroundVel(eq, S.t, V()).sub(moonVel(S.t, V())).length()).toBeCloseTo(112.7, 0);
+  });
+  it('hovering over one spot reads as zero speed, low down', () => {
+    dropTo(5000); talGroundVel(S.pos, S.t, S.vel); orbInfo();
+    expect(O.surf).toBe(true); expect(O.speed).toBeLessThan(0.01); expect(O.hs).toBeLessThan(0.01);
+  });
+  it('retrograde holds against motion over the ground, low down', () => {
+    dropTo(8000); const east = V().crossVectors(omegaT, S.pos.clone().sub(moonPos(S.t, V()))).normalize();
+    talGroundVel(S.pos, S.t, S.vel).addScaledVector(east, -60); orbInfo(); // slower than the ground: drifting west over it
+    S.hold = 'retro'; run(35);
+    expect(angleDeg(nose(), relVel(V()).normalize().negate())).toBeLessThan(2);
+  });
+  for (const pre of [12, 55]) it(`starting the burn on the braking cue stops just above the ground (${pre} s deorbit burn)`, () => {
+    S.hold = 'retro'; run(40); S.throttle = 1; run(pre); S.throttle = 0;
+    let t = 0; while (O.brake > 0 && t < 1500) { run(0.05); t += 0.05; }
+    expect(O.brake).toBe(0); expect(O.agl).toBeGreaterThan(BRAKE_STOP_H + 500); // it warned in good time
+    S.throttle = 1; let minAgl = Infinity; while (O.speed > 3 && t < 2000) { run(0.05); t += 0.05; minAgl = Math.min(minAgl, O.agl); }
+    expect(minAgl).toBeGreaterThan(MOON_FLOOR); // never hit the deck
+    expect(O.agl).toBeLessThan(BRAKE_STOP_H + 150);
   });
 });

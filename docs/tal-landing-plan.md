@@ -62,13 +62,22 @@ What was built:
 - The ship's shadow falls on the ground (the sun's shadow map); shadowed ground keeps 12% of the light, as if bounced from the sunlit ground around it.
 - `?debug` shows frame rate, triangles, draw calls and chunk counts under the readouts. Chunks take 12 to 25 ms to build on a desktop. In a software renderer the new shading costs about 15 to 20% more per frame than step 2. Phone numbers are still needed.
 
-### 4. Flying relative to the ground
+### 4. Flying relative to the ground (done)
 
 - Tal's spin in the physics: surface speed and direction under the ship.
 - Readouts switch to the ground when low over Tal: radar altitude (height above the ground below you), vertical speed and sideways speed relative to the ground.
 - Prograde and Retrograde hold the ground-relative direction when low, which is what landing needs.
 - Braking cue: "Brake in 14 s", then "Brake now", from the distance to the ground along your path and the engine's stopping distance.
 - Time warp limits use radar altitude.
+
+What was built:
+- `omegaT` and `talGroundVel()` in physics; `O.surf` switches on below 20 km over Tal (off again above 22 km). Then `O.speed`, `O.hs`, the holds and the velocity markers are relative to the ground.
+- Readouts in that mode: ground speed, height (metres below 10 km), vertical and horizontal speed (one decimal below 10 m/s), impact in (red under 30 s).
+- Braking cue (`brakeCue()`): a planar model of a full-thrust retrograde burn (gravity less the vx²/r curvature term, which is what holds an orbit up), searched for the latest start that stops `BRAKE_STOP_H` (550 m) above the ground where the burn ends. Four very different descents that burned on the cue stopped between 502 and 553 m; two are tests.
+- Map view and the predicted path are centred on Tal while you orbit it, so the orbit closes on itself.
+- Narrow portrait: tighter readouts so they no longer run under the camera buttons.
+
+Also in this round: a realistic sky (`src/sky.js`). About 9,000 stars with the real sky's spread of brightness (most faint, a few bright) and colour, round soft points, fainter ones crowding toward the galactic plane; the Milky Way as a baked glow with star clouds, dust lanes and a brighter core; and an exposure that fades the faint stars when sunlit Veyra or Tal or the sun fill the view.
 
 ### 5. Legs, touchdown, crash and take-off
 
