@@ -87,11 +87,10 @@ Key ideas:
 
 ## Roadmap
 
-The game is a **frontier patrol**: the Halberd is the only warship in a young colony system, answering distress calls, escorting and inspecting freighters, and hunting raiders who hide in the ring. Fuel is generous (time against fuel is the choice, not whether you can get home), and combat comes early, at real distances with a fire-control computer. The full plan, with places, jobs, phases and open decisions, is `docs/game-plan.md`.
+The game is changing direction: you will fly a **small smuggler's transport** (about 35 m, like the Millennium Falcon) with contraband in the hold and small guns, slow at first and upgradable. The first mission docks at a huge station for outcasts and misfits (automatic docking once you are close), clears an easy customs check in a hangar full of aliens (from free 3D asset packs), and sells the cargo. The Halberd stays as a navy destroyer on patrol. Landing on Tal becomes belly-down on downward thrusters. The full plan, with the first mission, phases and open decisions, is `docs/game-plan.md`. Until phase 1 lands, the code still flies the Halberd as described above.
 
-1. **Landing on Tal**: works (steps 1 to 5); polish next (step 6). Plan, decisions and status in `docs/tal-landing-plan.md`.
-2. **Home port**: fuel, sideways thrusters, a station in Veyra orbit to rendezvous and dock with, saving, first sounds.
-3. **Guns**: turrets with fire control, point defence, damage and repairs, a firing range, the first raider.
-4. **A lived-in system**: freighters and miners on real orbits, jobs, raiders in the ring, pay, rank and upgrades, the first story arc.
-5. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent), ports in the cities.
-6. Later: the rest of the system, then other stars.
+1. **Landing on Tal**: works (steps 1 to 5), with the Halberd. Plan and status in `docs/tal-landing-plan.md`.
+2. **The new ship**: model, weak-but-upgradable handling as data, belly-down landing on Tal.
+3. **The station and docking**: a huge station in Veyra orbit, "Request docking?", automatic docking into its bay, the Halberd on patrol, saving.
+4. **The hangar**: aliens, customs, selling the contraband; the first mission end to end.
+5. **Upgrades and jobs**, then **trouble** (navy scans, raiders, fights), then **Veyra** (re-entry, landing at cities), then further out.

@@ -1,26 +1,29 @@
 # Starwake game plan
 
-Where the game goes after landing on Tal: the world, what you do in it, and the order to build it in. Craig has confirmed the premise (frontier patrol), the order (home port before Veyra), generous fuel and early combat; the rest are recommendations until confirmed (see "Decisions" at the end). Like the landing plan (`docs/tal-landing-plan.md`), each phase ends playable on the phone.
+Where the game goes next: the world, what you do in it, and the order to build it in. This replaces the earlier frontier patrol plan. Craig's choices are listed under "Decisions" at the end; the rest are recommendations until confirmed. Like the landing plan (`docs/tal-landing-plan.md`), each phase ends playable on the phone.
 
 ## The game in a paragraph
 
-You command the Halberd, a 400 m destroyer and the only warship in a young colony system. Freighters, miners and shuttles work the long orbits between Veyra, its ring and its moon Tal, and when one calls for help, gets jumped by raiders or tries to slip past an inspection, you are who gets called. Everything flies for real: each job is a piece of flying to plan and carry out. How fast do you go, and can you still get home? Can you match orbits with a tumbling freighter, land a supply run on Tal, or close to firing range on a raider without it slipping into the ring?
+You fly a small, tired transport ship, about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a hangar full of aliens, sell the cargo, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
 
 ## Pillars
 
-1. **Real scale, real physics.** No speed limits, no fake drag, no shrunken planets, no dogfights at arm's length. The challenge comes from orbits, fuel and distance, not from rules made up for the game.
-2. **A big ship that feels big.** Slow turns, long burns, heavy landings, turrets that swing round, a bridge you sit in.
-3. **Phone first.** Everything works with thumbs, in portrait and landscape, in 10 to 20 minute sessions. The computers do the arithmetic (burns, firing solutions); the player does the flying and the deciding.
-4. **A lived-in system.** Ships on real orbits, people who call for help, places with a reason to go.
-5. **Every phase ships.** Each phase ends with something new to play on the phone, as the landing steps did.
+1. **Real scale, real physics.** No speed limits, no fake drag, no shrunken planets. The ship starts weak, so orbits and thrust matter from the first minute.
+2. **A small ship in a big place.** 35 m of patched-up freighter next to a station kilometres across, a navy destroyer ten times your length, a planet underneath.
+3. **Weird and lived-in.** Aliens, odd stalls, flickering signs, misfits with jobs. Humour is welcome.
+4. **Phone first.** Everything works with thumbs, in portrait and landscape, in 10 to 20 minute sessions. The hard parts (docking, aiming) have help.
+5. **Every phase ships.** Each phase ends with something new to play on the phone.
 
-## What exists now
+## What carries over, and what changes
 
-- Veyra (Earth-sized, oceans, clouds, atmosphere, a ring), Tal (its tidally locked moon, with ground you can land on), the sun, the stars and the Milky Way.
-- Newtonian flight with gravity from both bodies, time warp to 1000×, flight computer holds, a map with the predicted path.
-- Landing on Tal: legs, touchdown rules, crash card and checkpoint, take-off. Polish (landing step 6) is still to do.
-- A bridge interior with live screens and dials. Turrets and point defence mounts on the model, not yet working.
-- Not yet: fuel, saving, sound, other ships, anything to do once you arrive somewhere.
+Carries over: the flight model and real-scale orbits, Veyra, Tal, the ring, the sun and sky, Tal's terrain, the landing contact code and touchdown rules, the HUD, touch controls, time warp, the test setup.
+
+Changes:
+
+- **The player's ship.** A new model of about 35 m, built from shapes like the Halberd was. New handling: weak engines and slow turns at the start, better with upgrades. The protected feel tests (flip time, stopping) change on purpose.
+- **Landing on Tal.** Belly-down on downward thrusters, level, on landing gear, instead of tail-down on legs. Touchdown limits, contact points, the crash card and checkpoint, the landed state and take-off carry over; the landing camera and the readiness light adapt.
+- **The Halberd** becomes a navy destroyer flying its own patrol: a ship you would rather not be scanned by.
+- **The bridge interior** becomes a small cockpit (the chase view works until then).
 
 ## The world
 
@@ -28,172 +31,143 @@ You command the Halberd, a 400 m destroyer and the only warship in a young colon
 
 | | |
 |---|---|
-| Veyra | 6,000 km radius, gravity 9.6 m/s², 20 h day, a ring from 4,200 to 8,100 km up. A young colony: a few cities on the coasts |
-| Tal | 1,640 km radius, gravity 1.5 m/s², 42,000 km from Veyra, one orbit (and one turn) every 25.4 h. Mines and a fuel depot |
-| The Halberd | 400 m, 60,000 t, main engine 25 m/s² (2.6× Veyra's gravity), 50 with Boost. The system's only warship |
-
-### Premise: frontier patrol (confirmed)
-
-The colony is alive and growing, and stretched thin. Ore comes up from Tal and out of the ring; fuel and supplies go down to the cities. Raiders work the ring, where a ship can hide among the rocks and pick off freighters on their long, predictable orbits. The Halberd patrols: answering distress calls, escorting cargo, inspecting ships, and hunting raiders. A story arc runs underneath (who arms the raiders, and where they are based), but jobs come first.
+| Veyra | 6,000 km radius, gravity 9.6 m/s², a ring from 4,200 to 8,100 km up. The colony: cities, a government, a navy |
+| Tal | 1,640 km radius, gravity 1.5 m/s², 42,000 km away. Mining outposts, quiet places to land |
+| The station (name to decide) | Huge, kilometres across, in orbit around Veyra. Outside the colony's law: outcasts, misfits, aliens, traders |
+| The Halberd | The navy's 400 m destroyer, on patrol. Scans ships; contraband in your hold is a problem |
+| Your ship (name to decide) | About 35 m, a hold with hidden compartments, two small guns |
 
 ### Places
 
-| Place | Where | What happens there |
+| Place | What happens there |
+|---|---|
+| The station | Dock, customs, sell and buy cargo, jobs, upgrades, fuel, repairs, the bar for rumours. Home base and save point |
+| Veyra's orbit | Traffic, navy patrols, the station |
+| The ring | Hiding places, caches, and people who would rather not be found |
+| Tal | Outposts to deliver to, quiet spots for drops. Landing there is part of the job |
+| Veyra's cities | Bigger markets and stricter customs. Landing there needs a better engine (gravity 9.6 m/s²) |
+| Further out | Other planets, then other stars |
+
+## The first mission
+
+1. **Start** in a 400 km orbit around Veyra, about 30 km behind the station, with a hold full of contraband.
+2. **Approach.** The station is marked, with distance and closing speed. Fly toward it; the readouts say when you are slow enough.
+3. **Request docking.** Within about 10 km and under about 50 m/s relative to the station, a prompt asks "Request docking?". Tap yes.
+4. **Automatic docking.** Station control takes over: it matches speed, lines you up, the bay doors open, and the ship glides in (about a minute, and time warp can skip it). The doors close behind you. While docked the ship is fixed in the station's frame, the way a landed ship is fixed to Tal.
+5. **The hangar.** The view moves inside: your ship on its pad, aliens and droids going about their business.
+6. **Customs.** An officer wanders over: an easy check, a couple of choices on a card ("Anything to declare?"). At worst a small fee.
+7. **Trade.** Tap the trader and sell the contraband. Now you have money, and from here: jobs, upgrades, the bar, and undocking to go back out.
+
+## Inside the station: the hangar view
+
+- A 3D hangar with your ship parked in it. Drag to look around, pinch to zoom, tap to focus on a spot.
+- Tap a character or a place (customs officer, trader, mechanic, bar, job board) to get a card with choices, in the same style as the HUD.
+- Ambient life: aliens walking set paths and idling, droids, cargo lifts, signs and lights. Sound and music later.
+- **Aliens from free 3D asset packs** (confirmed). Public-domain (CC0) low-poly packs with walk and idle animations are available, for example from Quaternius and Kenney. Each pack's licence is checked and recorded in a credits file. Needs three.js's glTF loader (included in 0.128) and a download budget for phones (a few MB, loaded when you first dock).
+- Walking around as a character could come later if the hangar view feels limiting.
+
+## Your ship
+
+| Part | Start | Upgrades |
 |---|---|---|
-| The station (name to decide, e.g. Highport) | Low orbit of Veyra, a little above where you start | Home port: dock, refuel, repair, rearm, take jobs, save |
-| Shipping lanes | Transfer orbits between Veyra, the ring and Tal | Freighters on long, cheap orbits. Escorts, inspections and ambushes happen here |
-| The ring | 4,200 to 8,100 km above Veyra | Miners and their claims; raiders hiding among the rocks; patrol sweeps; wrecks after fights |
-| Tal depot | Near side of Tal, on flat ground | Fuel and ore. Supply runs land here, so landing on Tal becomes part of the job |
-| Tal's far side | Always facing away from Veyra, out of sight of the cities | Somewhere to hide a base (story) |
-| Veyra's cities | Coasts and plains | Where cargo ends up. Landing there comes in phase 5 |
-| Further out | Other planets, then other stars | Later |
+| Main engine | About 4 m/s² (enough for Tal at 1.5 m/s², not Veyra at 9.6) | Up to well above Veyra's gravity, so landing there is a goal to work toward |
+| Turning | Slow | Faster thrusters |
+| Downward thrusters | Enough to hover and land on Tal | Stronger, for Veyra |
+| Guns | Two small guns, for defence | Bigger guns, a turret |
+| Hold | Small, a hidden compartment | Bigger, better hidden |
+| Fuel | Generous tanks, bought at the station | Bigger tanks |
+| Hull | Thin | Plating, repairs at the station |
 
-## What you do: jobs
+Low thrust at real scale means longer burns: about 3.4 km/s to reach Tal is 14 minutes of burning at 4 m/s² (seconds at time warp). Early trips are slow and planned; upgrades make them quick.
 
-| Job | The flying | Needs |
-|---|---|---|
-| Distress call | Reach a freighter with a dead engine before its orbit drops it into the atmosphere or onto Tal; match orbits and hold close while the crew transfers | Rendezvous, holding station |
-| Inspection | Catch a ship leaving the ring, match its orbit, hold within a few hundred metres while it is scanned. Some run, some fight | Rendezvous, then combat |
-| Escort | Fly a freighter's transfer with it; raiders come out of the ring partway | Formation flying, combat |
-| Intercept | A raider has hit a freighter; catch it before it reaches the ring | Fast transfers, combat |
-| Supply run | Land cargo at Tal's depot or a ring miner | Landing (done), docking |
-| Patrol sweep | Visit beacons across the ring, scanning what you pass | Scanner, ring flying |
+## The loop
 
-Pay and rank come from jobs; pay buys upgrades and repairs; rank opens harder jobs.
-
-### Fuel: time against fuel
-
-With big tanks (confirmed: generous, about 25 km/s to start, to tune) you can always get somewhere. The question on every job is how fast to go and whether you can still get home. Leaving the 400 km orbit for Tal and braking into a 30 km orbit there:
-
-| Path | Time | Cost (change in speed) |
-|---|---|---|
-| Cheapest | 5.6 h | 3.4 km/s |
-| Faster | 3 h | 4.5 km/s |
-| Fast | under 2 h | about 9 km/s |
-| Dash | about 1 h | about 16 km/s |
-| Straight line at full thrust, flipping halfway | 40 min | about 60 km/s: not on one tank |
-
-Rough figures (Tal's own pull on approach and plane alignment are left out). Also: landing on Tal from low orbit about 1.6 km/s and the same to take off; Veyra's ground to orbit about 9 km/s. Fighting costs fuel too. A distress call answered with a dash leaves you a long, slow way home, or a stop at Tal's depot.
-
-## The ship
-
-| System | What it adds | Phase |
-|---|---|---|
-| Fuel | A gauge, speed change left, and the cost of a burn shown before you commit | 2 |
-| Sideways thrusters | Move without turning: docking, holding station next to another ship, sliding to flat ground before touchdown | 2 |
-| Sensors and targeting | Ships shown as brackets with name, range and closing speed; at real distances a ship is a speck long before it is a shape | 2 and 3 |
-| Main turrets | Kinetic rounds. The fire-control computer aims and leads the target; you choose when to fire and fly for range | 3 |
-| Point defence | Automatic against incoming rounds and missiles | 3 |
-| Hull and systems damage | Hull strength, plus hits that knock out engines, turrets or sensors. Repaired at the station | 3 |
-| Missiles | Longer range, guided, limited stock | 4 (decision) |
-| Cargo | Supply runs and salvage | 4 |
-| Comms | Distress calls, hails, jobs | 4 |
-| Bridge | Screens for targets, damage and jobs, so the bridge is a place you use, not only a view | ongoing |
-
-## Combat at real scale
-
-Ships in orbit only fight once their orbits are close: relative speeds of tens to hundreds of metres per second, at ranges from 1 to 100 km. A round fired at 5 km/s takes 10 s to cross 50 km, so a target that burns sideways in time can dodge. The fire-control computer leads the target as if it holds its course. Range is the main choice: close in and you hit more, but so do they.
-
-On the phone:
-
-- Tap a ship (or its bracket) to target it. A lead marker shows where the turrets are aiming.
-- A Fire button near Boost (hold to keep firing). Turrets swing round on their own; point defence works by itself.
-- You fly the ship: closing, keeping range, dodging with short burns. Steering already cancels holds, so dodging needs no new rule.
-- Hits show on the hull and on a damage screen on the bridge. Losing the ship works like a crash: a card says what happened, then Try again from a checkpoint.
-
-## Flying on a phone: the flight computer
-
-The braking cue showed the pattern: the computer works out the moment, the player flies it. Extend that:
-
-- **Targets.** Tap the station, Tal or a ship to make it the target; readouts show distance, closing speed and closest approach.
-- **Trip planner.** Choose a destination and how fast (cheap, fast, dash); the computer proposes the burns and their cost and gives "Burn in 2:10" cues like the braking cue. Time warp stops itself before each burn and when a ship comes into range.
-- **Rendezvous and holding station.** A marker for speed relative to the target, a "match speed" hold, and a docking view with alignment guides.
-- **Later, optional.** The computer flies a planned burn itself, as an upgrade or a setting.
+1. Take cargo or a job at the station.
+2. Fly it: to Tal, into the ring, to another orbit, past the navy if you can.
+3. Deliver, get paid, buy upgrades and fuel.
+4. Bigger jobs pay more and carry more risk: patrol scans, raiders, bounty hunters, stricter customs.
 
 ## Phases
 
-### Phase 1: Flight test (now)
+### Phase 1: The new ship
 
-Landing step 6: dust kicked up by the engines, landing lights, sound cues, a play-through on the phone and tuning of the limits and the cue.
+- The ship model (about 35 m) with landing gear, downward thrusters and two small guns (not firing yet).
+- Handling: weak engine, slow turns, as data so upgrades can change it later.
+- Belly-down landing on Tal: hover on downward thrusters, the touchdown rules and crash card carry over, the landing camera adjusted.
+- Chase camera for a small ship.
 
-Done when: landing on Tal is fun on the phone, in portrait and landscape.
+Done when: fly the new ship from orbit and land it on Tal, on the phone.
 
-### Phase 2: Home port
+### Phase 2: The station and docking
 
-- Fuel and the speed-change budget.
-- Sideways thrusters.
-- The station in orbit around Veyra: targets, rendezvous readouts, a "match speed" hold, docking, refuelling.
-- Saving: the browser keeps your game; the start moves to the station.
-- First sounds: engines, thrusters, bridge hum, warnings.
+- The huge station in orbit around Veyra, built from shapes, with a bay whose doors open.
+- Start near it; a target marker with distance and closing speed.
+- "Request docking?" within range, automatic docking and undocking.
+- The Halberd on its own patrol orbit (just flying, no scans yet).
+- Saving: the browser keeps your game.
 
-Done when: undock, fly to Tal, land, come back and dock, and the game remembers where you were.
+Done when: start, approach, dock and undock again.
 
-### Phase 3: Guns
+### Phase 3: The hangar
 
-- Main turrets with the fire-control computer, point defence, a Fire button.
-- Damage for the Halberd and for whatever it shoots at; repairs at the station.
-- A firing range near the station: drifting target drones, then drones that dodge.
-- The first raider: a small ship with simple orders (match the Halberd's orbit, keep range, shoot, run for the ring when hurt).
+- The hangar scene inside the station: your ship on its pad, aliens from the asset packs, ambient life.
+- Customs (easy) and a trader to sell the contraband; money.
+- First sounds.
 
-Done when: a fight with one raider in low orbit is tense and readable on the phone.
+Done when: the first mission plays end to end.
 
-### Phase 4: A lived-in system
+### Phase 4: Upgrades and jobs
 
-- Freighters, miners and shuttles on real orbits between the station, the ring and Tal's depot.
-- Comms and a job board; distress calls, inspections, escorts, intercepts, supply runs, patrol sweeps.
-- Raiders that hide in the ring (rocks you can hit, rocks they can hide behind).
-- Pay, rank and upgrades; the trip planner with its speed choices.
-- The first story arc, ending somewhere on Tal's far side.
+- A mechanic with upgrades (engine, thrusters, guns, hold, tanks, hull).
+- Jobs from the job board and the bar: deliveries to Tal and the ring, pickups, a first hidden drop.
+- Cargo prices and fuel.
 
-Done when: an evening of jobs feels like keeping a colony running.
+### Phase 5: Trouble
 
-### Phase 5: Veyra
+- The navy scans ships near Veyra; run, bluff or pay.
+- Raiders and bounty hunters; fights with the small guns (aim assist on the phone); hull damage and repairs.
 
-- Re-entry: heating, glowing plasma, drag; aerobraking to save fuel.
-- Veyra's ground in chunks like Tal's (needs a JavaScript copy of Veyra's terrain, as Tal got in landing step 1), with oceans and coastlines up close.
-- Ports in the cities: cargo runs and defending them.
+### Phase 6: Veyra
 
-Done when: land at a city on Veyra and fly back to the station.
+- Re-entry heating and drag; Veyra's ground in chunks like Tal's; landing at a city port once the engine is strong enough.
 
-### Phase 6: The wider system
+### Phase 7: Further out
 
-The sun becomes a body you orbit, with Veyra and Tal going round it, and other planets (a gas giant with its own moons is the classic next place). Needs distances thousands of times larger, orbits handed from one body's gravity to the next, and much longer time warp.
-
-### Phase 7: Other stars
-
-How you get there (the name Starwake suggests a drive that leaves a wake behind it), and whether new systems are made by hand or generated.
+The rest of the system, then other stars.
 
 ## Technical groundwork
 
 | What | Phase | Notes |
 |---|---|---|
-| Sound | 1 or 2 | Web Audio, generated or small files. Phone browsers only allow sound after a tap. |
-| Saving | 2 | Ship state and progress, versioned, in the browser's storage. The crash checkpoint becomes part of it. |
-| More than one ship | 2 and 3 | Today `stepFlight` flies one global ship `S`. Split it so the same flight model flies any ship (the Halberd, a raider, the station's orbit). Ships near the player get full physics every frame; distant ones ride their orbits on rails (exact two-body orbits plus scheduled burns), so dozens cost almost nothing. |
-| Contact between objects | 2 | Docking and collisions reuse the landing contact code (points against a shape instead of against the ground). |
-| Rounds and hits | 3 | Many small fast objects: straight lines plus gravity over a few seconds, tested against ship shapes, drawn as tracers near the floating origin. |
-| Ship orders (AI) | 3 and 4 | Built on the player's own flight computer: match orbit, hold range, attack, run. No separate fake physics for enemies. |
-| Jobs and places as data | 4 | Each job says where, who, what triggers it and what it pays; places say which frame they live in (Veyra orbit, Tal's ground, the ring). |
-| Veyra's terrain | 5 | The same quadtree and workers, a JS port of `PLANET_H` checked against the GPU like `npm run check:tal`, sea level, and much finer detail (Veyra is 3.7 times Tal's size). |
-| Scale | 6 | A sun-centred universe frame, a farther depth buffer limit (20 million km today), longer warp. |
-| Performance | always | 60 fps on the phone; the `?debug` line is the tool. Time warp limits near other ships. |
+| Ships as data | 1 and 2 | Model, size, thrust, turn rates and contact points per ship, so upgrades and other ships (the Halberd) use the same flight model. Today `stepFlight` flies one global ship `S`; split it. |
+| Docked state | 2 | Like the landed state on Tal: the pose is kept in the station's frame and follows its orbit at any time warp. The docking run is a short path in that frame. |
+| Station orbit | 2 | The station and the Halberd ride exact orbits (on rails) unless something needs full physics. |
+| Scenes | 3 | The hangar is its own three.js scene, like the bridge interior. Space keeps its state while you are inside. |
+| Asset loading | 3 | glTF loader, small compressed models, loaded on first dock, a credits file for licences. |
+| Saving | 2 | Ship, cargo, money and progress, versioned, in the browser's storage. |
+| Sound | 3 | Web Audio; phone browsers only allow sound after a tap. |
+| Performance | always | 60 fps on the phone; the `?debug` line is the tool. A hangar full of animated aliens needs a budget too. |
 
 ## Decisions
 
 Confirmed by Craig:
 
-1. **Premise:** frontier patrol.
-2. **Order:** home port (fuel, station, docking, saving) before landing on Veyra.
-3. **Fuel:** generous, 20 km/s or more per tank (about 25 to start, tuned in play).
-4. **Combat:** early, in the phase right after the home port.
+1. **Premise:** a smuggler in a small transport ship (about 35 m, like the Millennium Falcon) carrying contraband, with small guns for defence; poor speed and handling at first, upgradable.
+2. **First mission:** dock at a huge station for outcasts and misfits and trade the contraband.
+3. **Docking:** get close, accept "Request docking?", and the station flies you into an opening bay.
+4. **Customs:** an easy check in the hangar; then the game opens up from there.
+5. **Station interior:** a hangar view with tap to interact, at first.
+6. **Aliens:** from free 3D asset packs.
+7. **Landing on Tal:** belly-down on downward thrusters.
+8. **The Halberd:** stays as a navy destroyer that patrols.
+9. **Fuel:** generous (from the earlier plan).
 
 Still to confirm (recommendations):
 
-5. **Aiming.** The fire-control computer aims and leads; you choose when to fire and fly for range and angle (recommended). Alternative: aim by hand with the stick.
-6. **Fight distances.** Real scale: kilometres to tens of kilometres, rounds that take seconds to arrive (recommended). Close-in dogfights would need slower rounds or smaller distances than real.
-7. **Missiles.** Add them in phase 4, once gun fights work (recommended), or not at all.
-8. **Flight computer.** It plans burns and cues them, you fly them (recommended); flying planned burns for you comes later as an option.
-9. **Sideways thrusters on touch.** A "Move" button that turns the steering stick into sideways thrust while on (recommended), or a second stick.
-10. **Saves.** One automatic save in the browser (recommended), plus the checkpoint.
+10. **Names** for your ship and the station.
+11. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
+12. **Docking offer** within about 10 km and under about 50 m/s relative.
+13. **Ship and station models** built from shapes in code (like the Halberd), with asset packs used for the aliens and small props.
+14. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
-Next: finish phase 1 (landing step 6), then write a phase 2 plan in the same style as the landing plan.
+Next: phase 1, the new ship.
