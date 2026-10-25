@@ -26,6 +26,8 @@ export const TAL_SEED = [1.9, 4.4, 6.6];
 export const TAL_RELIEF = 0.02 * MOON_R; // metres per unit of baked height, the same relief the normal map shows
 export const TAL_MAX_H = 0.35 * TAL_RELIEF; // no ground on Tal is further than this from MOON_R, up or down (about 11.5 km)
 export const TAL_START_ALT = 30e3;       // "Start above Tal": circular orbit this high above the mean radius
+export const SURFACE_ALT = 20e3;         // below this height above Tal's ground, speeds and holds are relative to the ground
+export const BRAKE_STOP_H = 550;         // the braking cue aims to stop the ship this high above the ground (just above the deck)
 
 // Tal's terrain mesh: a cube-sphere quadtree of chunks, each GRID × GRID vertices. A chunk splits
 // into four when its size divided by its distance from the camera exceeds SPLIT.

@@ -69,12 +69,24 @@ export function refreshUI() {
 }
 
 const kmTxt = m => m === Infinity ? 'Escape' : (m < 0 ? '−' : '') + fmt(Math.abs(m) / 1000);
+const slow = v => Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : fmt(Math.abs(v)); // a decimal when it matters, near the ground
 let lastHud = '';
+// Two sets of readouts: orbital (speed, altitude, apoapsis, periapsis), and low over Tal, relative to
+// the ground (ground speed, height above the ground, horizontal speed, time to impact) with a braking cue.
 export function updateHud() {
-  const s = fmt(O.speed), a = fmt(O.alt / 1000), v = (O.vv < -0.5 ? '−' : '+') + fmt(Math.abs(O.vv)), ap = kmTxt(O.ap), pe = kmTxt(O.pe), pc = Math.round(S.throttle * 100);
-  const key = s + a + v + ap + pe + pc + O.name; if (key === lastHud) return; lastHud = key;
-  $('spd').textContent = s; $('alt').textContent = a; $('altLab').textContent = 'Altitude · ' + O.name; $('vsp').textContent = v;
-  $('ap').textContent = ap; $('apU').hidden = O.ap === Infinity; $('pe').textContent = pe; $('pe').classList.toggle('warn', O.pe < 0);
+  const g = O.surf, pc = Math.round(S.throttle * 100);
+  const s = fmt(O.speed), a = g ? (O.agl < 1e4 ? fmt(O.agl) : fmt(O.agl / 1000)) : fmt(O.alt / 1000);
+  const v = (O.vv < -0.05 ? '−' : '+') + (g ? slow(O.vv) : fmt(Math.abs(O.vv)));
+  const ap = g ? slow(O.hs) : kmTxt(O.ap), pe = g ? (O.impact === Infinity ? 'None' : fmt(O.impact)) : kmTxt(O.pe);
+  const cue = g && O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
+  const key = [g, s, a, v, ap, pe, pc, O.name, cue].join('|'); if (key === lastHud) return; lastHud = key;
+  $('spdLab').textContent = g ? 'Ground speed' : 'Speed'; $('spd').textContent = s;
+  $('altLab').textContent = g ? 'Height' : 'Altitude · ' + O.name; $('alt').textContent = a; $('altU').textContent = g && O.agl < 1e4 ? 'm' : 'km';
+  $('vsp').textContent = v;
+  $('apLab').textContent = g ? 'Horizontal' : 'Apoapsis'; $('ap').textContent = ap; $('apU').textContent = g ? 'm/s' : 'km'; $('apU').hidden = !g && O.ap === Infinity;
+  $('peLab').textContent = g ? 'Impact in' : 'Periapsis'; $('pe').textContent = pe; $('peU').textContent = g ? 's' : 'km'; $('peU').hidden = g && O.impact === Infinity;
+  $('pe').classList.toggle('warn', g ? O.impact < 30 : O.pe < 0);
+  $('cue').hidden = !cue; $('cue').textContent = cue; $('cue').classList.toggle('now', cue === 'Brake now');
   $('thrPct').textContent = pc + '%'; $('thrBar').style.width = pc + '%';
   const travel = Math.max(0, trackH - 44);
   $('thrKnob').style.transform = 'translateY(' + (-S.throttle * travel) + 'px)'; $('thrFillT').style.height = (S.throttle * travel + 30) + 'px';

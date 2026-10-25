@@ -1,9 +1,10 @@
 // Renderer, cameras, sky and global lights.
 // Floating origin: the ship sits at the render origin and the universe moves around it (see world.js).
-// The sky (stars, sun disc) is a separate scene drawn first with no depth, so it is always behind everything.
+// The sky (sun disc here; stars and the Milky Way in sky.js) is a separate scene drawn first with no
+// depth, so it is always behind everything.
 import * as THREE from 'three';
-import {TAU, SUN_I, SUN_DIR} from './config.js';
-import {rng, glowTex} from './util.js';
+import {SUN_I, SUN_DIR} from './config.js';
+import {glowTex} from './util.js';
 
 export const app = document.getElementById('app');
 export const renderer = new THREE.WebGLRenderer({antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true});
@@ -32,34 +33,7 @@ resize();
 export const sunDir = new THREE.Vector3(...SUN_DIR).normalize();
 
 // ---- sky ----
-export const skyG = new THREE.Group(); skyScene.add(skyG);
-function starPoints(pos, col, size) {
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({size: size * DPR, sizeAttenuation: false, vertexColors: true, depthWrite: false, depthTest: false, transparent: true, toneMapped: false}));
-}
-function starLayer(n, size, seed, bright) {
-  const r = rng(seed), pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    let x = r() * 2 - 1, y = r() * 2 - 1, z = r() * 2 - 1; const l = Math.hypot(x, y, z) || 1;
-    pos[i * 3] = x / l * 3000; pos[i * 3 + 1] = y / l * 3000; pos[i * 3 + 2] = z / l * 3000;
-    const t = r(), b = bright * (0.3 + r() * 0.7); let cr = 1, cg = 1, cb = 1;
-    if (t < 0.15) { cg = 0.86; cb = 0.7; } else if (t < 0.32) { cr = 0.76; cg = 0.86; }
-    col[i * 3] = cr * b; col[i * 3 + 1] = cg * b; col[i * 3 + 2] = cb * b;
-  }
-  return starPoints(pos, col, size);
-}
-function starBand(n, seed) { // faint galactic band
-  const r = rng(seed), pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
-  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.05, 0.4, 0.2)); const v = new THREE.Vector3();
-  for (let i = 0; i < n; i++) {
-    const a = r() * TAU; const g = (r() + r() + r() + r() - 2) * 0.13;
-    v.set(Math.cos(a), g, Math.sin(a)).normalize().applyQuaternion(q).multiplyScalar(3000);
-    pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
-    const b = 0.18 + r() * 0.35 * (1 - Math.abs(g) * 4); col[i * 3] = b * 0.95; col[i * 3 + 1] = b * 0.93; col[i * 3 + 2] = b;
-  }
-  return starPoints(pos, col, 1.0);
-}
-skyG.add(starBand(9000, 21)); skyG.add(starLayer(4500, 1.2, 11, 0.8)); skyG.add(starLayer(500, 2.2, 12, 1));
+export const skyG = new THREE.Group(); skyScene.add(skyG); // follows the camera; stars are added by sky.js
 const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(14, 24, 16), new THREE.MeshBasicMaterial({color: 0xfff6e4, toneMapped: false, depthTest: false, depthWrite: false}));
 sunDisc.position.copy(sunDir).multiplyScalar(2900); skyG.add(sunDisc); // 0.53° wide, like our Sun
 const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex([[0, 'rgba(255,248,230,1)'], [0.1, 'rgba(255,225,180,0.55)'], [0.35, 'rgba(255,190,120,0.1)'], [1, 'rgba(255,150,80,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false}));

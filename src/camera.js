@@ -1,10 +1,11 @@
-// Three views: 0 chase, 1 bridge, 2 map. Chase follows the ship's rotation with a short lag and
-// returns behind the ship 1.2 s after you stop looking around (unless Look is on).
+// Three views: 0 chase, 1 bridge, 2 map (centred on the body you are orbiting). Chase follows the
+// ship's rotation with a short lag and returns behind the ship 1.2 s after you stop looking around
+// (unless Look is on).
 import * as THREE from 'three';
-import {SHIP_SCALE, BRIDGE_PITCH, CHASE, R} from './config.js';
+import {SHIP_SCALE, BRIDGE_PITCH, CHASE, R, MOON_R} from './config.js';
 import {clamp} from './util.js';
 import {cam, icam} from './engine.js';
-import {S, talAgl, moonPos} from './physics.js';
+import {S, O, talAgl, moonPos} from './physics.js';
 import {W} from './world.js';
 import {IN} from './input.js';
 
@@ -41,8 +42,9 @@ export function updateCamera(dt, rt) {
     cam.quaternion.copy(S.quat).multiply(tQ); icam.quaternion.copy(tQ);
     fov = cam.aspect < 1 ? 88 : 74;
   } else {
+    const tal = O.dom === 1; if (tal) moonPos(S.t, mP).sub(S.pos); else mP.copy(W.world.position);
     dirV.set(Math.cos(S.mapPitch) * Math.sin(S.mapYaw), Math.sin(S.mapPitch), Math.cos(S.mapPitch) * Math.cos(S.mapYaw));
-    cam.position.copy(W.world.position).addScaledVector(dirV, R * 4 * S.mapZoom); cam.up.set(0, 1, 0); cam.lookAt(W.world.position); fov = 50;
+    cam.position.copy(mP).addScaledVector(dirV, (tal ? MOON_R : R) * 4 * S.mapZoom); cam.up.set(0, 1, 0); cam.lookAt(mP); fov = 50;
   }
   snap = false;
   cam.fov = fov; cam.updateProjectionMatrix();

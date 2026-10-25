@@ -5,7 +5,7 @@
 // angular acceleration limits (ACC). The flight computer can hold an attitude (prograde,
 // retrograde, or facing a body); manual steering cancels any hold and any time warp.
 import * as THREE from 'three';
-import {R, GM, ATM_TOP, FLOOR, SCALE_H, MOON_FLOOR, MOON_R, GM_M, MOON_A, MOON_INC, SOI_M, MOON_N, SPIN, TILT, SHIP_MASS, CDA, A_MAIN, A_BOOST, A_RETRO, RATE, ACC, WARPS, TAU, TAL_MAX_H, TAL_START_ALT} from './config.js';
+import {R, GM, ATM_TOP, FLOOR, SCALE_H, MOON_FLOOR, MOON_R, GM_M, MOON_A, MOON_INC, SOI_M, MOON_N, SPIN, TILT, SHIP_MASS, CDA, A_MAIN, A_BOOST, A_RETRO, RATE, ACC, WARPS, TAU, TAL_MAX_H, TAL_START_ALT, SURFACE_ALT, BRAKE_STOP_H} from './config.js';
 import {clamp, smooth} from './util.js';
 import {talHeight} from './tal.js';
 
@@ -15,8 +15,9 @@ export const qTiltInv = qTilt.clone().invert();
 export const eqN = new V3(0, 1, 0).applyQuaternion(qTilt);           // Veyra's spin axis
 const moonQ = qTilt.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(MOON_INC, 0, 0)));
 export const omegaP = eqN.clone().multiplyScalar(SPIN);              // atmosphere co-rotates with the planet
+export const omegaT = new V3(0, 1, 0).applyQuaternion(moonQ).multiplyScalar(MOON_N); // Tal's spin (once per orbit)
 const zero = new V3(), m4 = new THREE.Matrix4();
-const yAxis = new V3(0, 1, 0), qSpin = new THREE.Quaternion(), qBody = new THREE.Quaternion(), tB = new V3(), mP2 = new V3();
+const mNow = new V3(), yAxis = new V3(0, 1, 0), qSpin = new THREE.Quaternion(), qBody = new THREE.Quaternion(), tB = new V3(), mP2 = new V3(), gV = new V3(), cU = new V3(), cH = new V3(), cP = new V3();
 const tmpA = new V3(), tmpB = new V3(), tmpC = new V3(), mP = new V3(), mPa = new V3(), mV = new V3(), pa = new V3(), aExt = new V3(), thrust = new V3(), vAir = new V3(), pp = new V3(), pvv = new V3(), hT = new V3(), hU = new V3(), des = new V3(), fwd = new V3(), tV = new V3(), tQ = new THREE.Quaternion(), invQ = new THREE.Quaternion(), tE = new THREE.Euler();
 
 // Ship and session state. Camera and UI fields live here too so a whole session can be saved and restored.
@@ -27,7 +28,11 @@ export const S = {
 };
 // Derived orbital readouts, relative to the dominant body (Tal inside its sphere of influence, otherwise Veyra).
 // agl is height above the ground below the ship when over Tal, otherwise the same as alt.
-export const O = {dom: 0, name: 'Veyra', speed: 0, alt: 0, agl: 0, vv: 0, ap: 0, pe: 0, period: 0, altPlanet: 0, altMoon: 0};
+// surf: low over Tal (below SURFACE_ALT), where speed, hs (horizontal) and vv are relative to the
+// turning ground, and so are the prograde and retrograde holds. impact: seconds until the ground on
+// the current path. brake: seconds until a full-thrust retrograde burn must start to stop just above
+// the ground (0 = now, Infinity = no burn needed).
+export const O = {dom: 0, name: 'Veyra', speed: 0, alt: 0, agl: 0, vv: 0, hs: 0, surf: false, impact: Infinity, brake: Infinity, ap: 0, pe: 0, period: 0, altPlanet: 0, altMoon: 0};
 
 let notify = () => {};
 export function setNotifier(fn) { notify = fn; }
@@ -46,6 +51,8 @@ export function talAgl(p, t) {
   tB.applyQuaternion(talQuat(t, qBody).invert()).divideScalar(r);
   return r - MOON_R - talHeight(tB.x, tB.y, tB.z);
 }
+// Velocity of Tal's ground (or of a point fixed to Tal) at universe point p.
+export function talGroundVel(p, t, out) { moonPos(t, gV); return out.crossVectors(omegaT, gV.subVectors(p, gV)).add(moonVel(t, gV)); }
 export function accelAt(p, t, out) {
   const r2 = p.lengthSq(), r = Math.sqrt(r2); out.copy(p).multiplyScalar(-GM / (r2 * r));
   moonPos(t, mPa); tmpC.subVectors(p, mPa); const d2 = tmpC.lengthSq(), d = Math.sqrt(d2);
@@ -62,8 +69,56 @@ export function orbInfo() {
   else { O.ap = Infinity; O.pe = h2 / (mu * (1 + e)) - Rb; O.period = Infinity; }
   O.altPlanet = S.pos.length() - R; O.altMoon = dmoon - MOON_R;
   O.agl = O.dom === 1 ? talAgl(S.pos, S.t) : O.alt;
+  O.surf = O.dom === 1 && O.agl < (O.surf ? SURFACE_ALT * 1.1 : SURFACE_ALT);
+  if (O.surf) O.speed = relVel(tmpB).length(); // the ground's motion is horizontal, so vv is the same either way
+  O.hs = Math.sqrt(Math.max(0, O.speed * O.speed - O.vv * O.vv));
+  brakeCue();
 }
-export function relVel(out) { if (O.dom === 1) { moonVel(S.t, mV); return out.subVectors(S.vel, mV); } return out.copy(S.vel); }
+// Velocity relative to the dominant body: its centre in orbit, its ground when low over Tal.
+export function relVel(out) {
+  if (O.surf) return out.subVectors(S.vel, talGroundVel(S.pos, S.t, mV));
+  if (O.dom === 1) { moonVel(S.t, mV); return out.subVectors(S.vel, mV); } return out.copy(S.vel);
+}
+
+// ---- braking cue ----
+// A planar model is enough here: height h, vertical speed vz and horizontal speed vx over the ground,
+// gravity g less the curvature term vx²/r (which is what keeps an orbit up), and full main-engine
+// thrust against the velocity. burnStop returns how far a burn from this state drops (dh) and
+// travels (dx) before the ship stops.
+function burnStop(vz, vx, g, r) {
+  let dh = 0, dx = 0, n = 0;
+  for (;;) {
+    const v = Math.hypot(vx, vz); if (v < 1 || n++ > 4000) break;
+    const dt = Math.min(0.5, Math.max(0.05, v / A_MAIN / 50)), ge = g - vx * vx / r;
+    const ax = -A_MAIN * vx / v, az = -A_MAIN * vz / v - ge;
+    dh += vz * dt + az * dt * dt / 2; dx += vx * dt + ax * dt * dt / 2; vz += az * dt; vx += ax * dt;
+  }
+  return [dh, dx];
+}
+let cueT = -1, cueAgl = 0;
+// Ground height under the point dx metres ahead along the ground track, relative to the ground here.
+function groundAhead(dx) {
+  moonPos(S.t, mP2); cU.subVectors(S.pos, mP2); const r = cU.length(); cU.divideScalar(r);
+  relVel(cH); cH.addScaledVector(cU, -cH.dot(cU)); const l = cH.length(); if (l < 1e-6) return 0;
+  cP.copy(cU).multiplyScalar(r).addScaledVector(cH, dx / l).setLength(r).add(mP2);
+  return O.agl - talAgl(cP, S.t);
+}
+function brakeCue() {
+  if (!O.surf || O.speed < 2 || O.agl < BRAKE_STOP_H + 100) { O.impact = O.brake = Infinity; cueT = -1; return; }
+  if (cueT >= 0 && Math.abs(S.t - cueT) < 0.2 && Math.abs(O.agl - cueAgl) < 50) return; // a few times a second is plenty
+  cueT = S.t; cueAgl = O.agl;
+  const r = O.agl + MOON_R, g = GM_M / (r * r), ge = g - O.hs * O.hs / r, h = O.agl, vz = O.vv, vx = O.hs;
+  // Coasting: h(t) = h + vz t - ge t²/2 over ground at today's height.
+  if (ge > 0) O.impact = (vz + Math.sqrt(vz * vz + 2 * ge * h)) / ge; else O.impact = vz < 0 ? h / -vz : Infinity;
+  if (O.impact === Infinity) { O.brake = Infinity; return; }
+  const stopH = T => { // height left above the ground where the ship stops, if the burn starts in T seconds
+    const [dh, dx] = burnStop(vz - ge * T, vx, g, r);
+    return h + vz * T - ge * T * T / 2 + dh - groundAhead(vx * T + dx) - BRAKE_STOP_H;
+  };
+  if (stopH(0) <= 0) { O.brake = 0; return; }
+  let lo = 0, hi = O.impact; for (let i = 0; i < 18; i++) { const m = (lo + hi) / 2; if (stopH(m) > 0) lo = m; else hi = m; }
+  O.brake = lo;
+}
 export function radialOut(out) { if (O.dom === 1) { moonPos(S.t, mP); return out.subVectors(S.pos, mP).normalize(); } return out.copy(S.pos).normalize(); }
 
 // Start: circular orbit 400 km up, inclined to the ring, sun behind, Tal ahead and lit.
@@ -173,17 +228,26 @@ export function stepFlight(dt, inp) {
 }
 
 // Predicted path (gravity only, Tal moving) written into out as xyz triples in the universe frame.
-// Returns the number of points. Covers one orbit when bound and low, otherwise 2.5 days.
+// Returns the number of points. Covers one orbit when bound and low, otherwise 2.5 days. Inside Tal's
+// sphere of influence the path is drawn relative to Tal, placed where Tal is now, so an orbit of Tal
+// closes on itself instead of smearing along Tal's own orbit.
 export function predictPath(out, maxPts) {
-  pp.copy(S.pos); pvv.copy(S.vel); let t = S.t, i = 0, el = 0;
-  const r0 = pp.length(), v2 = pvv.lengthSq(), eps = v2 / 2 - GM / r0; let horizon = 2.5 * 86400;
-  if (eps < 0) { const a = -GM / (2 * eps); if (a < MOON_A * 0.45) horizon = TAU * Math.sqrt(a * a * a / GM) * 1.02; }
+  pp.copy(S.pos); pvv.copy(S.vel); let t = S.t, i = 0, el = 0, horizon = 2.5 * 86400;
+  const talRel = O.dom === 1, kM = talRel ? 0.004 : 0.01; moonPos(S.t, mNow);
+  if (talRel) {
+    const r0 = pp.distanceTo(mNow), v2 = moonVel(S.t, mV).sub(pvv).lengthSq(), eps = v2 / 2 - GM_M / r0;
+    if (eps < 0) { const a = -GM_M / (2 * eps); if (a < SOI_M * 0.5) horizon = TAU * Math.sqrt(a * a * a / GM_M) * 1.02; }
+  } else {
+    const r0 = pp.length(), v2 = pvv.lengthSq(), eps = v2 / 2 - GM / r0;
+    if (eps < 0) { const a = -GM / (2 * eps); if (a < MOON_A * 0.45) horizon = TAU * Math.sqrt(a * a * a / GM) * 1.02; }
+  }
   out[0] = pp.x; out[1] = pp.y; out[2] = pp.z; accelAt(pp, t, pa);
   while (i < maxPts - 1 && el < horizon) {
     const r = pp.length(); moonPos(t, mP); const dm = pp.distanceTo(mP);
-    const h = clamp(Math.min(0.004 * TAU * Math.sqrt(r * r * r / GM), 0.01 * TAU * Math.sqrt(dm * dm * dm / GM_M)), 0.5, 1800);
+    const h = clamp(Math.min(0.004 * TAU * Math.sqrt(r * r * r / GM), kM * TAU * Math.sqrt(dm * dm * dm / GM_M)), 0.5, 1800);
     pvv.addScaledVector(pa, h * 0.5); pp.addScaledVector(pvv, h); t += h; el += h; accelAt(pp, t, pa); pvv.addScaledVector(pa, h * 0.5);
-    i++; out[i * 3] = pp.x; out[i * 3 + 1] = pp.y; out[i * 3 + 2] = pp.z;
+    i++; if (talRel) moonPos(t, mP).negate().add(mNow).add(pp); else mP.copy(pp);
+    out[i * 3] = mP.x; out[i * 3 + 1] = mP.y; out[i * 3 + 2] = mP.z;
     if (r < R + FLOOR || dm < MOON_R) break;
   }
   return i + 1;

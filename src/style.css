@@ -54,6 +54,10 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .shipmk span{font-family:var(--f-num);font-size:11px;color:var(--amber);background:var(--panel);padding:2px 6px;border-radius:3px}
 #toast{position:absolute;left:50%;top:24%;transform:translateX(-50%);font-size:15px;line-height:1.4;padding:8px 14px;background:var(--panel);border:1px solid var(--amber);border-radius:4px;opacity:0;transition:opacity .3s;width:max-content;max-width:calc(100% - 32px);text-align:center}
 #toast.on{opacity:1}
+/* Braking cue: top centre, or under the readouts on a narrow portrait screen. */
+.cue{position:absolute;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;color:var(--amber);background:var(--panel);border:1px solid var(--amber);border-radius:4px;padding:10px 14px}
+.cue.now{color:var(--amber-deep);background:var(--amber);animation:cuePulse 1s ease-in-out infinite alternate}
+@keyframes cuePulse{to{filter:brightness(1.25)}}
 /* Controls stack above the body markers, so a marker pinned to the screen edge never takes a tap meant for a button. */
 .tr,.fc,.touch{z-index:1}
 .fc{position:absolute;left:var(--edge-l);bottom:calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;pointer-events:auto}
@@ -104,4 +108,15 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
   .card{gap:12px;padding:16px}
   .wordmark{font-size:22px}
 }
-@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+/* Narrow portrait: tighter readouts so they stay clear of the camera buttons; cue and debug line below them. */
+@media (max-width:420px){
+  .readouts{gap:7px 8px;padding:9px 9px}
+  .tr .btn{padding:0 10px}
+  .lab{font-size:7.5px;letter-spacing:.1em}
+  .val{font-size:17px}.val.sm{font-size:13px}.unit{font-size:10px;margin-left:3px}
+}
+@media (max-width:600px) and (min-height:521px){
+  .cue{left:var(--edge-l);transform:none;top:calc(162px + env(safe-area-inset-top,0px))}
+  #dbg{top:calc(206px + env(safe-area-inset-top,0px))}
+}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}.cue.now{animation:none}}

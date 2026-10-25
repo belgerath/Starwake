@@ -1,10 +1,11 @@
 // Starwake entry point: wires modules together and runs the frame loop.
 import './style.css';
-import {WARPS} from './config.js';
+import {WARPS, R, MOON_R} from './config.js';
 import {clamp} from './util.js';
 import {renderer, scene, skyScene, skyG, cam, icam, sunDir} from './engine.js';
-import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl} from './physics.js';
+import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos} from './physics.js';
 import {W, buildWorld, updateWorld, updateTerrain, updateRocks, updatePrediction, resetPrediction} from './world.js';
+import {buildSky, updateSky} from './sky.js';
 import {updateBridge} from './ship/bridge.js';
 import {updateCamera, snapCamera} from './camera.js';
 import {initInput, readInput} from './input.js';
@@ -18,7 +19,10 @@ function startTal() { initTalOrbit(sunDir); setMode(0); launch(); }
 function togglePause() { if (S.paused) { launch(); return; } S.paused = true; S.warpIdx = 0; showIntro('Resume'); }
 function setMode(m) {
   S.camMode = m; S.camYaw = 0; S.camPitch = 0;
-  if (m === 2) { S.mapYaw = Math.atan2(S.pos.x, S.pos.z); S.mapPitch = clamp(Math.asin(S.pos.y / S.pos.length()) + 0.45, -1.4, 1.4); resetPrediction(); }
+  if (m === 2) { // start the map looking down on the ship from above the body it orbits
+    const p = O.dom === 1 ? S.pos.clone().sub(moonPos(S.t, new S.pos.constructor())) : S.pos;
+    S.mapYaw = Math.atan2(p.x, p.z); S.mapPitch = clamp(Math.asin(p.y / p.length()) + 0.45, -1.4, 1.4); resetPrediction();
+  }
   snapCamera();
 }
 function cycleCam() { setMode((S.camMode + 1) % 3); }
@@ -42,7 +46,7 @@ function updateDebug(now) {
   dbgT0 = now; dbgN = 0;
 }
 
-let last = 0, rt = 0;
+let last = 0, rt = 0, skyBodies = null;
 function frame(now) {
   const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now; rt += dt;
   if (S.launched && !S.paused) stepFlight(dt, readInput(dt));
@@ -50,6 +54,7 @@ function frame(now) {
   updateWorld(dt, rt);
   updateCamera(dt, rt);
   updateTerrain(cam);
+  W.moon.getWorldPosition(skyBodies[1].pos); updateSky(dt, cam, skyBodies);
   updateRocks();
   updatePrediction(dt);
   skyG.position.copy(cam.position);
@@ -61,11 +66,12 @@ function frame(now) {
 }
 
 setTimeout(() => { // let the intro card paint before the GPU bakes the planet
-  try { buildWorld(); } catch (err) { console.error(err); setStatus('Could not build the world on this device.'); return; }
+  try { buildSky(); buildWorld(); } catch (err) { console.error(err); setStatus('Could not build the world on this device.'); return; }
+  skyBodies = [{pos: W.world.position, radius: R, albedo: 1}, {pos: new S.pos.constructor(), radius: MOON_R, albedo: 0.55}];
   initOrbit(sunDir); setMode(0); initMarkers(actions);
   ready = true; setReady();
   if (new URLSearchParams(location.search).has('debug')) {
-    window.starwake = {S, O, actions, W, cam, talAgl};
+    window.starwake = {S, O, actions, W, cam, talAgl, talGroundVel};
     dbg = document.createElement('div'); dbg.id = 'dbg'; document.getElementById('hud').appendChild(dbg);
   }
   requestAnimationFrame(frame);
