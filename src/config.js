@@ -21,6 +21,9 @@ export const MOON_INC = 0.09;      // orbit inclination to Veyra's equator
 export const MOON_FLOOR = 3e3;
 export const SOI_M = MOON_A * Math.pow(GM_M / GM, 0.4);
 export const MOON_N = Math.sqrt((GM + GM_M) / Math.pow(MOON_A, 3));
+// Tal's terrain. MOON_H (GPU bake) and tal.js (JS, for meshes and collision) both use these.
+export const TAL_SEED = [1.9, 4.4, 6.6];
+export const TAL_RELIEF = 0.02 * MOON_R; // metres per unit of baked height, the same relief the normal map shows
 
 // Ring (equatorial)
 export const RING_IN = 1.7 * R;

@@ -7,7 +7,8 @@ A 3D space exploration game with real-scale, Newtonian flight. You fly the Halbe
 ```bash
 npm install
 npm run dev        # dev server; open the "Network" URL on a phone on the same Wi-Fi
-npm test           # physics and handling tests (Vitest, runs in Node)
+npm test           # physics, handling and terrain tests (Vitest, runs in Node)
+npm run check:tal  # compares Tal's JS terrain with the GPU bake in headless Chromium; refreshes the test fixture
 npm run build      # production build into dist/
 npm run preview    # serve dist/ locally
 ```
@@ -24,6 +25,7 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 | `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, warp limits, orbit prediction. |
 | `src/engine.js` | Renderer, cameras, sky scene (stars, sun), lights, environment map. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
+| `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight`). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
 | `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. |
 | `src/ship/destroyer.js` | The Halberd model, built from primitives in ship units (×`SHIP_SCALE` = metres). |
 | `src/ship/bridge.js` | Bridge interior (its own scene and camera) and its live screens and dials. |
@@ -40,6 +42,8 @@ Key ideas:
 - **Log depth buffer** is on (near 0.5 m, far 2e10 m). Custom shaders must include the `logdepthbuf` chunks (see `SURF_VERT` and the `*_FRAG` shaders).
 - **three.js is pinned to 0.128.0.** The code uses `outputEncoding`, `sRGBEncoding` and other pre-r152 APIs. Upgrading is a deliberate task, not a side effect.
 - `ringDens()` in `RING_FRAG` and `ringDensJS()` in `world.js` describe the same ring profile and must stay in sync.
+- `NOISE` and `MOON_H` in `shaders.js` and `noise.js` / `tal.js` describe the same terrain and must stay in sync. After changing either, run `npm run check:tal` (all 1.57 million texels must agree) and commit the refreshed `tests/fixtures/tal-bake.json`.
+- Noise must give the same numbers on every GPU and in JS: hash with integers (the PCG `hash3`), never `fract(sin(x)*big)`, and avoid discontinuities (a value that jumps at an edge differs wherever rounding differs).
 
 ## Physics and feel (agreed with Craig, protected by tests)
 
@@ -75,7 +79,7 @@ Key ideas:
 
 ## Roadmap
 
-1. **Landing on Tal**: chunked level-of-detail terrain (cube-sphere quadtree) that refines as you descend, driven by the same noise as the baked maps so orbit and ground match. Port the GLSL `snoise`/crater functions to JS for collision and altitude. Lunar-lander physics already works; add landing legs, touchdown and take-off.
+1. **Landing on Tal**: in progress. Plan, decisions and status in `docs/tal-landing-plan.md`.
 2. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent).
 3. **Core loop**: fuel and delta-v budget so burns cost something; places worth reaching (survey sites, a station to refuel and dock with, wrecks).
 4. Later: more of the system, then other star systems.

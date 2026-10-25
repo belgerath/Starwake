@@ -4,7 +4,7 @@
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
 import * as THREE from 'three';
-import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, A_MAIN, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU} from './config.js';
+import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, A_MAIN, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
 import {scene, sunDir, sunLight, hemi, makeEnv} from './engine.js';
 import {bake} from './bake.js';
@@ -40,9 +40,9 @@ export function buildWorld() {
   const pN = bake(PS, NORMAL_PASS, {H: {value: pH.texture}, k: {value: 0.025}, flatSea: {value: 1}});
   pH.dispose();
   const pC = bake(512, CLOUD_PASS, {seed: {value: new V3(8.2, 2.4, 5.9)}});
-  const mH = bake(512, MOON_H, {seed: {value: new V3(1.9, 4.4, 6.6)}}, true);
+  const mH = bake(512, MOON_H, {seed: {value: new V3(...TAL_SEED)}}, true);
   const mA = bake(512, MOON_ALB, {H: {value: mH.texture}});
-  const mN = bake(512, NORMAL_PASS, {H: {value: mH.texture}, k: {value: 0.02}, flatSea: {value: 0}});
+  const mN = bake(512, NORMAL_PASS, {H: {value: mH.texture}, k: {value: TAL_RELIEF / MOON_R}, flatSea: {value: 0}});
   mH.dispose();
   const surfMat = (a, n, c, atm, str) => new THREE.ShaderMaterial({uniforms: {albedoMap: {value: a.texture}, normalMap: {value: n.texture}, cloudMap: {value: c ? c.texture : a.texture}, hasClouds: {value: c ? 1 : 0}, hasOcean: {value: str > 0 ? 1 : 0}, cloudDelta: {value: 0}, sunI: {value: SUN_I}, atmoStrength: {value: str}, sunDir: {value: sunDir}, atmoColor: {value: new V3(...atm)}, objRot: {value: new THREE.Matrix3()}}, vertexShader: SURF_VERT, fragmentShader: PLANET_FRAG, extensions: {derivatives: true}});
 
