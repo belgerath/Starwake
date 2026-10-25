@@ -87,9 +87,11 @@ Key ideas:
 
 ## Roadmap
 
-The draft game plan (premise, places, the loop, phases, open decisions) is `docs/game-plan.md`. Until its decisions are confirmed, the order below stands.
+The game is a **frontier patrol**: the Halberd is the only warship in a young colony system, answering distress calls, escorting and inspecting freighters, and hunting raiders who hide in the ring. Fuel is generous (time against fuel is the choice, not whether you can get home), and combat comes early, at real distances with a fire-control computer. The full plan, with places, jobs, phases and open decisions, is `docs/game-plan.md`.
 
 1. **Landing on Tal**: works (steps 1 to 5); polish next (step 6). Plan, decisions and status in `docs/tal-landing-plan.md`.
-2. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent).
-3. **Core loop**: fuel and delta-v budget so burns cost something; places worth reaching (survey sites, a station to refuel and dock with, wrecks).
-4. Later: more of the system, then other star systems.
+2. **Home port**: fuel, sideways thrusters, a station in Veyra orbit to rendezvous and dock with, saving, first sounds.
+3. **Guns**: turrets with fire control, point defence, damage and repairs, a firing range, the first raider.
+4. **A lived-in system**: freighters and miners on real orbits, jobs, raiders in the ring, pay, rank and upgrades, the first story arc.
+5. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent), ports in the cities.
+6. Later: the rest of the system, then other stars.
