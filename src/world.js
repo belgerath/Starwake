@@ -83,7 +83,7 @@ export function updateWorld(dt, rt) {
   W.spinG.rotation.y = SPIN * S.t; W.cloudMesh.rotation.y = -0.2 * SPIN * S.t; W.planet.material.uniforms.cloudDelta.value = -W.cloudMesh.rotation.y;
   W.moonPivot.rotation.y = moonTh(S.t);
   const ship = W.ship;
-  ship.root.quaternion.copy(S.quat); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
+  ship.root.quaternion.copy(S.quat); ship.setLegs(S.legs); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
   scene.updateMatrixWorld();
   for (const m of [W.planet, W.cloudMesh]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
   W.terrain.updateUniforms(W.moon, cam, renderer.domElement.height);

@@ -1,7 +1,7 @@
 // The Halberd (DD-07): a 400 m destroyer built from primitives in "ship units" (about 14 long),
 // scaled to metres by SHIP_SCALE. Panel textures are drawn on a canvas at load.
 import * as THREE from 'three';
-import {SHIP_SCALE,UVS} from '../config.js';
+import {SHIP_SCALE,UVS,LEG_HINGES,LEG_FEET} from '../config.js';
 import {lin,rng,glowTex} from '../util.js';
 import {ANISO} from '../engine.js';
 
@@ -113,10 +113,29 @@ export function buildDestroyer(){
   const winPos=[];const wr=rng(19);
   [1,-1].forEach(s=>{for(const y of [0.06,-0.24])for(let f=3.6;f>-4.9;f-=0.21){if(wr()<0.3)continue;const sd=sideAt(f);winPos.push([s*(sd.x+0.185),y,-f,s*Math.atan2(sd.nx,-sd.nz)])}
     for(const y of [DT+0.35,DT+0.58,DT+0.81])for(let z=0.5;z<2.6;z+=0.17){if(wr()<0.25)continue;winPos.push([s*0.853,y,z,s*Math.PI/2])}});
+  // Landing legs: struts hinged at the engine block. Stowed they fold forward along the hull (out of sight,
+  // so the ship looks as before in orbit); deployed they swing out and back past the engine bells to stand on
+  // LEG_FEET. setLegs(k) moves them (0 stowed, 1 down).
+  const legs=[],yToZ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2);
+  LEG_HINGES.forEach((h,i)=>{
+    const H=new THREE.Vector3(...h),P=new THREE.Vector3(...LEG_FEET[i]);P.z-=0.04; // pad centre, just above the contact point
+    const d=P.sub(H),L=d.length();d.normalize();
+    const axis=new THREE.Vector3(0,0,-1).cross(d).normalize(),ang=Math.acos(-d.z);
+    const g=new THREE.Group();g.position.copy(H);vis.add(g);
+    const strut=(r0,r1,a,b,mat)=>{const geo=new THREE.CylinderGeometry(r1,r0,(b-a)*L,10);geo.rotateX(-Math.PI/2);geo.translate(0,0,-(a+b)/2*L);add(geo,mat,0,0,0,0,0,0,g)};
+    strut(0.13,0.11,0,0.62,darkM);strut(0.075,0.075,0.55,1,plateM);
+    add(new THREE.CylinderGeometry(0.15,0.15,0.1,12),accentM,0,0,-0.6*L,Math.PI/2,0,0,g); // collar where the lower leg slides out
+    const pad=add(new THREE.CylinderGeometry(0.3,0.36,0.08,20),plateM,0,0,-L,0,0,0,g);
+    pad.quaternion.setFromAxisAngle(axis,ang).invert().multiply(yToZ); // flat on the ground when deployed
+    add(bbox(0.36,0.32,0.42,0.04),darkM,h[0],h[1],h[2]+0.1); // hinge housing
+    legs.push({g,axis,ang});
+  });
+  const setLegs=k=>{const e=k*k*(3-2*k);for(const l of legs){l.g.visible=k>0;l.g.quaternion.setFromAxisAngle(l.axis,l.ang*e)}};
+  setLegs(0);
   const winI=new THREE.InstancedMesh(new THREE.BoxGeometry(0.1,0.045,0.02),new THREE.MeshBasicMaterial({color:new THREE.Color(1.0,0.78,0.5),toneMapped:false}),winPos.length);
   const o3=new THREE.Object3D();winPos.forEach((p,i)=>{o3.position.set(p[0],p[1],p[2]);o3.rotation.set(0,p[3],0);o3.updateMatrix();winI.setMatrixAt(i,o3.matrix)});vis.add(winI);
   vis.traverse(m=>{if(m.isMesh&&m.material&&m.material.isMeshStandardMaterial){m.castShadow=true;m.receiveShadow=true}});
   const mats=new Set();vis.traverse(m=>{if(m.isMesh&&m.material&&m.material.isMeshStandardMaterial)mats.add(m.material)});
-  return{root,vis,flames,glows,towerHide,strobe,dish,nav,eLight,mats:[...mats],eye:new THREE.Vector3(0,TB+0.32,0.72)};
+  return{root,vis,flames,glows,towerHide,strobe,dish,nav,eLight,setLegs,mats:[...mats],eye:new THREE.Vector3(0,TB+0.32,0.72)};
 }
 

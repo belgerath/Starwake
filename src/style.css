@@ -57,9 +57,11 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 /* Braking cue: top centre, or under the readouts on a narrow portrait screen. */
 .cue{position:absolute;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;color:var(--amber);background:var(--panel);border:1px solid var(--amber);border-radius:4px;padding:10px 14px}
 .cue.now{color:var(--amber-deep);background:var(--amber);animation:cuePulse 1s ease-in-out infinite alternate}
+.cue.ok{color:var(--go);border-color:var(--go)}
 @keyframes cuePulse{to{filter:brightness(1.25)}}
-/* Controls stack above the body markers, so a marker pinned to the screen edge never takes a tap meant for a button. */
-.tr,.fc,.touch{z-index:1}
+/* Controls and readouts stack above the body markers, so a marker pinned to the screen edge never takes a tap
+   meant for a button or covers a number. */
+.readouts,.tr,.fc,.touch{z-index:1}
 .fc{position:absolute;left:var(--edge-l);bottom:calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;pointer-events:auto}
 .fc .row{display:flex;gap:6px;align-items:stretch}
 .chip{font-family:var(--f-display);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:4px;height:38px;padding:0 10px;cursor:pointer}
@@ -82,8 +84,9 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #thrTrack{position:relative;width:46px;height:160px;border:1px solid var(--line);border-radius:23px;background:rgba(7,12,22,.35);touch-action:none}
 #thrFillT{position:absolute;left:4px;right:4px;bottom:4px;border-radius:19px;background:rgba(255,177,74,.32);height:0}
 #thrKnob{position:absolute;left:3px;right:3px;bottom:3px;height:38px;border-radius:19px;background:rgba(217,231,244,.22);border:1px solid rgba(217,231,244,.55)}
+#thrHover{position:absolute;left:-7px;right:-7px;bottom:0;height:2px;margin-bottom:-1px;background:var(--go);border-radius:1px;will-change:transform}
 .trk-lab{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-family:var(--f-display);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
-#intro{position:absolute;inset:0;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
+#intro,#crash{position:absolute;inset:0;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
 .card{width:min(460px,100%);background:rgba(7,12,22,.88);border:1px solid var(--line);border-radius:6px;padding:24px 22px;display:grid;gap:18px}
 .sub{font-family:var(--f-display);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
 .wordmark{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:.08em;text-transform:uppercase;line-height:1.1;margin:0;text-wrap:balance}

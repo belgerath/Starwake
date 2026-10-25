@@ -4,9 +4,11 @@
 //   Touch (map): one finger rotates the map, pinch zooms.
 //   Mouse: left drag steers, right drag looks, wheel zooms.
 // Stick and mouse go through an expo curve so small movements give fine control.
+// With the landing legs down the thrust slider (and W/S) covers only 0 to 18% (thrustScale()), for
+// hovering. Z still gives full thrust and Boost double, so a burn already running keeps going.
 import {clamp} from './util.js';
 import {app, canvas} from './engine.js';
-import {S} from './physics.js';
+import {S, thrustScale} from './physics.js';
 
 export const IN = {pitch: 0, yaw: 0, roll: 0, boost: false, retro: false, lookOn: false, looking: false, lastLook: -1e9};
 
@@ -28,12 +30,12 @@ function orbitBy(dx, dy) {
 }
 function zoomBy(f) { if (S.camMode === 2) S.mapZoom = clamp(S.mapZoom * f, 0.32, 9); else S.camZoom = clamp(S.camZoom * f, 0.55, 3); }
 
-// actions: {launch, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady}
+// actions: {launch, retry, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady}
 export function initInput(actions) {
   addEventListener('keydown', e => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     keys[e.code] = true; if (e.repeat) return;
-    if (e.code === 'Enter' && actions.isReady() && S.paused) { actions.launch(); return; }
+    if (e.code === 'Enter' && actions.isReady() && S.paused) { if (S.crash) actions.retry(); else actions.launch(); return; }
     if (!S.launched) return;
     if (e.code === 'KeyC') actions.cycleCam();
     if (e.code === 'KeyM') actions.setMode(S.camMode === 2 ? 0 : 2);
@@ -91,7 +93,7 @@ export function initInput(actions) {
 
   // throttle slider
   const track = document.getElementById('thrTrack'); let thrId = null;
-  const setThr = e => { const r = track.getBoundingClientRect(); S.throttle = clamp(1 - (e.clientY - r.top - 19) / (r.height - 38), 0, 1); if (S.throttle < 0.03) S.throttle = 0; };
+  const setThr = e => { const r = track.getBoundingClientRect(); let k = clamp(1 - (e.clientY - r.top - 19) / (r.height - 38), 0, 1); if (k < 0.03) k = 0; S.throttle = k * thrustScale(); };
   track.addEventListener('pointerdown', e => { thrId = e.pointerId; try { track.setPointerCapture(e.pointerId); } catch (_) {} setThr(e); });
   track.addEventListener('pointermove', e => { if (e.pointerId === thrId) setThr(e); });
   const endThr = e => { if (e.pointerId === thrId) thrId = null; };
@@ -120,8 +122,9 @@ export function readInput(dt) {
   if (keys.KeyQ) r += 1; if (keys.KeyE) r -= 1;
   r += rollT + rollG;
   p += -expo(mouse.y) - expo(dz(joy.y)); y += expo(mouse.x) + expo(dz(joy.x));
-  if (keys.KeyW) S.throttle = Math.min(1, S.throttle + dt * 0.5);
-  if (keys.KeyS) S.throttle = Math.max(0, S.throttle - dt * 0.5);
+  const sc = thrustScale(); // W and S move within the slider's range (above it, W leaves thrust alone and S drops into it)
+  if (keys.KeyW && S.throttle < sc) S.throttle = Math.min(sc, S.throttle + dt * 0.5 * sc);
+  if (keys.KeyS) S.throttle = Math.max(0, Math.min(sc, S.throttle) - dt * 0.5 * sc);
   IN.pitch = p; IN.yaw = y; IN.roll = r;
   IN.boost = !!(keys.ShiftLeft || keys.ShiftRight || boostT); IN.retro = !!keys.Space;
   IN.looking = oneLook || !!mlook;

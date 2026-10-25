@@ -22,7 +22,7 @@ These are recommendations. Change any of them before the step that needs it.
 
 1. **Tail-down landing** (steps 5 and 6). The ship lands standing on its stern, nose up, like the ships in The Expanse. Holding retrograde already swings the nose upright as you slow down, the main engines do the braking and hovering, and no new controls are needed. The same method works on Veyra later, since the engines are 2.6× Veyra's gravity. The alternative, a belly landing, needs new downward thrusters and a new control to fly them.
 2. **Touchdown limits** (step 5). Safe: under 3 m/s down, under 1.5 m/s sideways, tilted less than 8° from upright, on ground sloping less than 12°. 3 to 6 m/s down is a hard landing (a warning, no harm). Anything else, or the hull touching the ground, is a crash.
-3. **Fine thrust near the ground** (step 5). Hovering at 6% is a 10 px target on the thrust slider. With the legs down, the slider covers 0 to 3× Tal's gravity (0 to 18%) and shows "Fine". Boost still gives full power.
+3. **Fine thrust near the ground** (step 5). Hovering at 6% is a 10 px target on the thrust slider. With the legs down, the slider covers 0 to 3× Tal's gravity (0 to 18%) and shows "Fine". Boost still gives full power. (Built so it does not cut a burn already running above 18%.)
 4. **Crashing** (step 5). A card says what went wrong ("Touched down at 11 m/s. Safe is under 3 m/s.") with Try again (from a checkpoint saved 15 km up on the way down) and Back to orbit. No damage model yet.
 5. **A shortcut for testing** (step 2). A "Start above Tal" button on the intro card puts you in a 30 km orbit around Tal, so each step can be tried on the phone in seconds instead of flying there first.
 
@@ -81,13 +81,26 @@ Also in this round: a realistic sky (`src/sky.js`). About 13,000 stars with the 
 
 The first version of the sky was too faithful to exposure: from the start orbit sunlit Veyra dimmed it until it looked emptier than before, and the Milky Way was off to the side. Craig noticed; the second version above is the fix.
 
-### 5. Legs, touchdown, crash and take-off
+### 5. Legs, touchdown, crash and take-off (done)
 
 - Four landing legs at the stern, deploying automatically below 3 km above the ground.
 - Contact: leg feet and a few hull points tested against `talHeight` on every physics sub-step.
 - Touchdown rules, landed state (the ship rides with Tal and time warp still works), take-off by pushing thrust above hover, the crash card and checkpoint.
 - Fine thrust near the ground; a touchdown readiness light (green when within the limits).
 - Tests: a scripted landing succeeds, a fast one crashes, take-off returns to flight, a landed ship stays put through 1000× warp.
+
+What was built:
+- Legs: four struts hinged at the engine block (`LEG_HINGES`, `LEG_FEET` in `config.js`). Stowed they are folded away out of sight; below 3 km they swing out and back over 4 s, and the feet stand 234 m behind the ship's centre, 35 m past the engine bells. They stow again above 3.45 km.
+- Contact (`contact()` in physics): once the ship is within reach of the ground, every sub-step tests 22 hull points and, with the legs down, the four feet against `talAgl`. A hull point below the ground is a crash. A foot below the ground is a touchdown, judged on speed down and sideways relative to the turning ground, tilt from the local vertical, and the slope of the plane through the ground under the four feet. Near the ground sub-steps are at most 0.05 s and time warp at most 10×.
+- Landing settles the ship onto all four feet (it turns to stand along the ground's normal, keeping its heading) and stores the pose in Tal's body frame. A landed ship turns with Tal at any warp and takes off when thrust beats gravity.
+- Crash card with the reason in numbers ("Touched down at 12 m/s. Safe is under 3 m/s."), Try again (from the checkpoint: passing 15 km on the way down, or the last landing) and Back to orbit.
+- Fine thrust: with the legs down the slider and W/S cover 0 to 18% and show "Fine", with a green mark at hover. It does not cut a burn already running above 18% (the braking burn often crosses 3 km at full thrust); touching the slider does. Z and Boost still give full power.
+- Touchdown light where the braking cue sits: "Legs coming down", "Descent too fast", "Drifting sideways", "Not upright", "Ground too steep", green "Ready to land", then "Landed". Height in the readouts is now the clearance of the lowest part of the ship (0 when landed).
+- The braking cue now stops the stern 150 m above the ground (`BRAKE_CLEAR`); two tested descents stop 100 to 160 m up.
+- Retrograde leans toward upright below 30 m/s over the ground, so holding it through the end of the burn leaves the ship standing on its tail at a hover, and it leans against drift. A test flies the whole thing: deorbit, brake on the cue, descend on Retrograde with a simple thrust rule, land.
+- Landing camera: while the legs are down, chase blends into a view from the ship's deck side, upright to the local vertical, looking down past the hull at the ground (further back on a portrait screen). Steeper and higher while there is height to lose.
+- Body markers pinned to the screen edge step aside for the readouts, the braking cue and the touchdown light.
+- Found along the way: of four test descents that burned on the cue, two came down on flat ground and two on crater walls (17° and 22°) and tipped over. Picking a spot is part of landing; a translation control (sideways thrusters) may be worth adding in step 6.
 
 ### 6. Polish
 
