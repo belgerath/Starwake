@@ -1,8 +1,8 @@
-// The destroyer's bridge: a separate small scene rendered over the world with its own camera,
+// The cockpit: a separate small scene rendered over the world with its own camera,
 // so its geometry is in local units (metres-ish, eye near the origin) and never touches world scale.
 // Screens are canvases redrawn about 8 times a second from the flight state.
 import * as THREE from 'three';
-import {TAU,R,MOON_R,RING_IN,RING_OUT,RADAR_RANGE,WARPS,A_MAIN,A_BOOST,MONO} from '../config.js';
+import {TAU,R,MOON_R,RING_IN,RING_OUT,RADAR_RANGE,WARPS,SHIP,MONO} from '../config.js';
 import {clamp,fmt,lin,rng} from '../util.js';
 import {ANISO,sunDir} from '../engine.js';
 import {S,O,moonPos} from '../physics.js';
@@ -98,7 +98,7 @@ function drawWing(sc,s){const g=sc.g,W=sc.c.width,H=sc.c.height;g.fillStyle='#05
   rows.forEach((r,i)=>g.fillText(r,18,80+i*34));sc.tex.needsUpdate=true}
 
 
-function reactorPct(){return clamp(18+S.aMain/A_BOOST*80,0,100)}
+function reactorPct(){return clamp(18+(S.aMain+S.aLift)/SHIP.aBoost*80,0,100)}
 function frameBox(g,W,H,title,color){g.fillStyle='#05101a';g.fillRect(0,0,W,H);g.strokeStyle='rgba(120,200,255,.28)';g.lineWidth=2;g.strokeRect(6,6,W-12,H-12);
   g.fillStyle=color||'#ffb14a';g.font='600 20px '+MONO;g.textAlign='left';g.fillText(title,22,38);g.fillStyle='rgba(120,200,255,.18)';g.fillRect(22,50,W-44,2)}
 function bar(g,x,y,w,h,v,col){g.fillStyle='rgba(120,200,255,.14)';g.fillRect(x,y,w,h);g.fillStyle=col;g.fillRect(x,y,w*clamp(v,0,1),h)}
@@ -110,9 +110,9 @@ function drawFlight(sc){const g=sc.g,W=512,H=320;frameBox(g,W,H,'FLIGHT · '+O.n
   g.fillStyle='#e3f2ff';g.font='500 42px '+MONO;g.fillText(fmt(O.speed),22,124);g.font='500 30px '+MONO;g.fillText(fmt(O.alt/1000),300,122);
   g.fillStyle='#7f9bb3';g.font='500 16px '+MONO;g.fillText('VERT',22,166);g.fillText('AP KM',190,166);g.fillText('PE KM',350,166);
   g.font='500 22px '+MONO;g.fillStyle='#e3f2ff';g.fillText((O.vv<0?'−':'+')+fmt(Math.abs(O.vv)),22,196);g.fillText(kmTxt(O.ap),190,196);g.fillStyle=O.pe<0?'#ff6b55':'#e3f2ff';g.fillText(kmTxt(O.pe),350,196);
-  g.fillStyle='#7f9bb3';g.font='500 16px '+MONO;g.fillText('THRUST '+Math.round(S.aMain/A_MAIN*100)+'%',22,246);bar(g,22,258,W-44,16,S.aMain/A_BOOST,'#ffb14a');
+  g.fillStyle='#7f9bb3';g.font='500 16px '+MONO;g.fillText((S.hover?'LIFT ':'THRUST ')+Math.round(S.throttle*100)+'%',22,246);bar(g,22,258,W-44,16,(S.aMain+S.aLift)/SHIP.aBoost,'#ffb14a');
   sc.tex.needsUpdate=true}
-function drawShip(sc){const g=sc.g,W=512,H=320;frameBox(g,W,H,'DD-07 HALBERD');
+function drawShip(sc){const g=sc.g,W=512,H=320;frameBox(g,W,H,SHIP.name.toUpperCase());
   const rows=[['HULL','100%',1,'#30ff7a'],['REACTOR',Math.round(reactorPct())+'%',reactorPct()/100,'#6fc8ff']];
   rows.forEach((r,i)=>{const y=86+i*50;g.fillStyle='#7f9bb3';g.font='500 17px '+MONO;g.fillText(r[0],22,y);g.fillStyle='#e3f2ff';g.textAlign='right';g.fillText(r[1],W-22,y);g.textAlign='left';bar(g,22,y+10,W-44,10,r[2],r[3])});
   g.font='500 17px '+MONO;
@@ -142,7 +142,7 @@ let screenT=0,blinkT=0;const offCol=lin(0x1a2028);
 export function updateBridge(b,dt,rt){
   invQ.copy(S.quat).invert();
   b.isun.position.copy(sunDir).applyQuaternion(invQ).multiplyScalar(5);b.isun.intensity=2.2*S.lit;
-  const vals=[[b.dSpeed,O.speed/1000],[b.dAlt,O.alt/1e5],[b.dThr,S.aMain/A_MAIN*100],[b.dRea,reactorPct()]];
+  const vals=[[b.dSpeed,O.speed/1000],[b.dAlt,O.alt/1e5],[b.dThr,(S.aMain+S.aLift)/SHIP.aMain*100],[b.dRea,reactorPct()]];
   for(const [d,v] of vals){const target=clamp(v/d.max,0,1);d.v+=(target-d.v)*(1-Math.exp(-dt*5));d.needle.rotation.z=2.356-d.v*4.712}
   const sk=1-Math.exp(-dt*10);
   b.stickP.rotation.x+=(S.inPitch*0.32-b.stickP.rotation.x)*sk;b.stickP.rotation.z+=(-S.inYaw*0.32-b.stickP.rotation.z)*sk;

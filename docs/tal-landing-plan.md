@@ -1,5 +1,7 @@
 # Tal landing plan
 
+Note: steps 1 to 5 were built for the Halberd, landing tail-down on legs. Since then the player flies a small transport that lands belly-down in hover mode (`docs/game-plan.md`, phase 1); the terrain, contact, touchdown rules, crash card and checkpoint all carried over.
+
 Goal: bring the Halberd down onto Tal, stand on the ground, and take off again. Orbit and ground are one world: the terrain you land on is the terrain you saw from orbit.
 
 Each step ends with `npm test`, `npm run build`, a look in a browser (phone-sized too when the HUD or controls change), then a commit and push. Pushes go to the working branch; merging to `main` publishes the game to the phone.

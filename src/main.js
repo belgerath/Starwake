@@ -3,7 +3,7 @@ import './style.css';
 import {WARPS, R, MOON_R} from './config.js';
 import {clamp} from './util.js';
 import {renderer, scene, skyScene, skyG, cam, icam, sunDir} from './engine.js';
-import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos, hasCheckpoint, restoreCheckpoint} from './physics.js';
+import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos, hasCheckpoint, restoreCheckpoint, setHover} from './physics.js';
 import {W, buildWorld, updateWorld, updateTerrain, updateRocks, updatePrediction, resetPrediction} from './world.js';
 import {buildSky, updateSky} from './sky.js';
 import {updateBridge} from './ship/bridge.js';
@@ -29,12 +29,18 @@ function setMode(m) {
   snapCamera();
 }
 function cycleCam() { setMode((S.camMode + 1) % 3); }
-function toggleHold(h) { S.hold = S.hold === h ? null : h; }
+function toggleHold(h) { if (!S.hover) S.hold = S.hold === h ? null : h; }
+// Hover: belly thrusters, low over Tal. Starts at hover thrust; switching it off cuts the thrust.
+function toggleHover() {
+  if (S.hover) { setHover(false); return; }
+  if (setHover(true)) toast('hover', 'Hover on. Thrust lifts the ship; let go of the stick and it levels out.');
+  else toast('hoverNo', 'Hover works low over Tal, below 20 km.');
+}
 function warpStep(d) {
   const max = maxWarpIdx(), want = clamp(S.warpIdx + d, 0, WARPS.length - 1);
   if (want > max) { toast('warp', 'Time warp is limited this close to a surface.'); S.warpIdx = max; } else S.warpIdx = want;
 }
-const actions = {launch, startTal, retry, backToOrbit, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady: () => ready};
+const actions = {launch, startTal, retry, backToOrbit, togglePause, setMode, cycleCam, toggleHold, toggleHover, warpStep, isReady: () => ready};
 
 setNotifier(toast);
 initInput(actions);

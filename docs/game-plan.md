@@ -89,7 +89,7 @@ Low thrust at real scale means longer burns: about 3.4 km/s to reach Tal is 14 m
 
 ## Phases
 
-### Phase 1: The new ship
+### Phase 1: The new ship (done)
 
 - The ship model (about 35 m) with landing gear, downward thrusters and two small guns (not firing yet).
 - Handling: weak engine, slow turns, as data so upgrades can change it later.
@@ -97,6 +97,15 @@ Low thrust at real scale means longer burns: about 3.4 km/s to reach Tal is 14 m
 - Chase camera for a small ship.
 
 Done when: fly the new ship from orbit and land it on Tal, on the phone.
+
+What was built:
+- `TRANSPORT` in `config.js`: everything about the ship as data (thrust, turn rates, gear height, contact points, camera framing), read by physics, camera, HUD and model, so upgrades can change it later. Main engine 4 m/s², Boost 8, lift thrusters 4, turns at about 10°/s.
+- The model (`src/ship/transport.js`): a saucer hull 24 m across with two cargo prongs (35 m long in all), a cockpit pod on the right, an engine band glowing across the back with a sheet of flame, four lift thrusters and four gear legs under the belly, small turrets top and bottom, a radar dish, worn panels with a few rust patches. The Halberd's model stays in the code for phase 2.
+- Hover mode: a Hover button (G on a keyboard) low over Tal. The slider becomes lift, with a mark at hover (about 37%). Let go of the stick and the ship levels itself, leaning against drift until it stops; steer to tilt and move. Switched on nose-up after braking, the main engine carries part of the thrust while the ship swings level, so it does not drop.
+- Belly-down landing: the gear comes down below 1.5 km; touchdown limits as before, with tilt measured from level. The touchdown light says "Hover to land" until hover is on.
+- The braking cue now works from 60 km down and checks the ground along the whole burn: with a weak engine, braking from orbit takes minutes and covers hundreds of kilometres, and the first version only looked at the ground where the ship would stop (a test caught it hitting a ridge on the way).
+- Cameras: chase and landing views framed for a 35 m ship, the cockpit view in the pod (still the destroyer's roomy bridge interior), the sun's shadow box sized to the ship.
+- Tests: hover (levels and stops drift, steering moves it, switching on nose-up keeps height), a full approach from orbit that lands, the braking cue across shallow and steep deorbits, and the existing landing, crash, take-off and warp tests for the new ship.
 
 ### Phase 2: The station and docking
 

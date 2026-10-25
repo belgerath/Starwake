@@ -1,10 +1,10 @@
 // HTML overlay: flight readouts, body and motion markers, flight-computer buttons, toasts, intro card.
 // UI state is read from S/O every frame (with change checks), so physics never needs to call the HUD.
 import * as THREE from 'three';
-import {WARPS, MOON_R, A_MAIN} from './config.js';
+import {WARPS, MOON_R, SHIP} from './config.js';
 import {fmt, $} from './util.js';
 import {app, cam} from './engine.js';
-import {S, O, relVel, thrustScale} from './physics.js';
+import {S, O, relVel} from './physics.js';
 import {W} from './world.js';
 
 const V3 = THREE.Vector3;
@@ -24,6 +24,7 @@ export function initHud(actions) {
   $('helpBtn').addEventListener('click', () => { if (S.launched) actions.togglePause(); });
   $('holdPro').addEventListener('click', () => actions.toggleHold('pro'));
   $('holdRetro').addEventListener('click', () => actions.toggleHold('retro'));
+  $('hoverBtn').addEventListener('click', () => { if (S.launched) actions.toggleHover(); });
   $('vmPro').addEventListener('click', () => { if (S.launched) actions.toggleHold('pro'); });
   $('vmRetro').addEventListener('click', () => { if (S.launched) actions.toggleHold('retro'); });
   $('warpUp').addEventListener('click', () => actions.warpStep(1));
@@ -64,12 +65,15 @@ export function showCrash(msg, canRetry) {
 export function hideCrash() { $('crash').hidden = true; $('retryBtn').blur(); $('orbitBtn').blur(); }
 
 // ---- per-frame UI state ----
-const MODES = ['Chase', 'Bridge', 'Map'];
+const MODES = ['Chase', 'Cockpit', 'Map'];
 let uiKey = '';
 export function refreshUI() {
-  const key = S.hold + '|' + S.warpIdx + '|' + S.camMode;
+  const key = S.hold + '|' + S.warpIdx + '|' + S.camMode + '|' + S.hover + '|' + O.surf;
   if (key === uiKey) return; uiKey = key;
   $('holdPro').setAttribute('aria-pressed', S.hold === 'pro'); $('holdRetro').setAttribute('aria-pressed', S.hold === 'retro');
+  // Hover is offered low over Tal; while hovering the ship levels itself, so the holds are off.
+  $('hoverRow').hidden = !O.surf && !S.hover; $('hoverBtn').setAttribute('aria-pressed', S.hover);
+  $('holdPro').disabled = $('holdRetro').disabled = S.hover;
   $('vmPro').classList.toggle('lock', S.hold === 'pro'); $('vmRetro').classList.toggle('lock', S.hold === 'retro');
   for (const m of markers) m.el.classList.toggle('lock', S.hold === m.b.key);
   const w = WARPS[S.warpIdx]; $('warpVal').textContent = fmt(w) + '×'; $('wlab').classList.toggle('on', w > 1);
@@ -78,20 +82,20 @@ export function refreshUI() {
 
 const kmTxt = m => m === Infinity ? 'Escape' : (m < 0 ? '−' : '') + fmt(Math.abs(m) / 1000);
 const slow = v => Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : fmt(Math.abs(v)); // a decimal when it matters, near the ground
-// Touchdown light with the legs down: green when a touchdown now would be safe, otherwise what is wrong.
-const READY = {legs: 'Legs coming down', ok: 'Ready to land', fast: 'Descent too fast', drift: 'Drifting sideways', tilt: 'Not upright', steep: 'Ground too steep'};
+// Touchdown light with the gear down: green when a touchdown now would be safe, otherwise what is wrong.
+const READY = {legs: 'Gear coming down', hover: 'Hover to land', ok: 'Ready to land', fast: 'Descent too fast', drift: 'Drifting sideways', tilt: 'Not level', steep: 'Ground too steep'};
 let lastHud = '';
 // Two sets of readouts: orbital (speed, altitude, apoapsis, periapsis), and low over Tal, relative to
 // the ground (ground speed, height of the ship's lowest point above the ground, horizontal speed, time
-// to impact) with a braking cue, then the touchdown light once the legs are down.
+// to impact) with a braking cue, then the touchdown light once the gear is down.
 export function updateHud() {
-  const g = O.surf, pc = Math.round(S.throttle * 100), sc = thrustScale(), fine = sc < 1, pos = Math.min(1, S.throttle / sc);
+  const g = O.surf, pc = Math.round(S.throttle * 100), pos = S.throttle;
   const s = fmt(O.speed), a = g ? (O.clear < 1e4 ? fmt(Math.max(0, O.clear)) : fmt(O.clear / 1000)) : fmt(O.alt / 1000);
   const v = (O.vv < -0.05 ? '−' : '+') + (g ? slow(O.vv) : fmt(Math.abs(O.vv)));
   const ap = g ? slow(O.hs) : kmTxt(O.ap), pe = g ? (O.impact === Infinity ? 'None' : fmt(O.impact)) : kmTxt(O.pe);
-  const cue = g && O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
+  const cue = O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
   const land = S.landed ? 'Landed' : (g && S.legsDown && !cue && O.ready ? READY[O.ready] : '');
-  const hover = fine && g ? Math.min(1, O.g / A_MAIN / sc) : -1;
+  const hover = S.hover ? Math.min(1, O.g / SHIP.aLift) : -1; // mark on the slider where lift balances gravity
   const key = [g, s, a, v, ap, pe, pc, pos.toFixed(3), O.name, cue, land, hover.toFixed(2), trackH].join('|'); if (key === lastHud) return; lastHud = key;
   $('spdLab').textContent = g ? 'Ground speed' : 'Speed'; $('spd').textContent = s;
   $('altLab').textContent = g ? 'Height' : 'Altitude · ' + O.name; $('alt').textContent = a; $('altU').textContent = g && O.clear < 1e4 ? 'm' : 'km';
@@ -101,9 +105,9 @@ export function updateHud() {
   $('pe').classList.toggle('warn', g ? O.impact < 30 : O.pe < 0);
   $('cue').hidden = !cue; $('cue').textContent = cue; $('cue').classList.toggle('now', cue === 'Brake now');
   $('land').hidden = !land; $('land').textContent = land; $('land').classList.toggle('ok', land === 'Landed' || land === READY.ok);
-  // Thrust: the readout shows the real percentage; the bar, slider and knob show the slider's range (0 to 18% when fine).
-  $('thrName').textContent = fine ? 'Fine' : 'Throttle'; $('thrPct').textContent = pc + '%'; $('thrBar').style.width = (pos * 100) + '%';
-  $('thrLab').textContent = fine ? 'Fine' : 'Thrust';
+  // Thrust: the main engine, or the lift thrusters while hovering.
+  $('thrName').textContent = S.hover ? 'Lift' : 'Throttle'; $('thrPct').textContent = pc + '%'; $('thrBar').style.width = (pos * 100) + '%';
+  $('thrLab').textContent = S.hover ? 'Lift' : 'Thrust';
   const travel = Math.max(0, trackH - 44);
   $('thrKnob').style.transform = 'translateY(' + (-pos * travel) + 'px)'; $('thrFillT').style.height = (pos * travel + 30) + 'px';
   $('thrHover').hidden = hover < 0; if (hover >= 0) $('thrHover').style.transform = 'translateY(' + (-(22 + hover * travel)) + 'px)';
