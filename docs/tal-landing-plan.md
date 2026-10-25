@@ -77,7 +77,9 @@ What was built:
 - Map view and the predicted path are centred on Tal while you orbit it, so the orbit closes on itself.
 - Narrow portrait: tighter readouts so they no longer run under the camera buttons.
 
-Also in this round: a realistic sky (`src/sky.js`). About 9,000 stars with the real sky's spread of brightness (most faint, a few bright) and colour, round soft points, fainter ones crowding toward the galactic plane; the Milky Way as a baked glow with star clouds, dust lanes and a brighter core; and an exposure that fades the faint stars when sunlit Veyra or Tal or the sun fill the view.
+Also in this round: a realistic sky (`src/sky.js`). About 13,000 stars with the real sky's spread of brightness (most faint pinpoints, a few bright with a soft glow) and colour, fainter ones crowding toward the galactic plane; the Milky Way as a baked glow with star clouds, dust lanes that run along the band and a golden core, placed so the core rises just above Veyra's limb, ahead and to the left, at the start; and an exposure that dims the sky gently (never below half) when sunlit Veyra or Tal fill the view and strongly when the sun is in view.
+
+The first version of the sky was too faithful to exposure: from the start orbit sunlit Veyra dimmed it until it looked emptier than before, and the Milky Way was off to the side. Craig noticed; the second version above is the fix.
 
 ### 5. Legs, touchdown, crash and take-off
 

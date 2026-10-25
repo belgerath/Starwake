@@ -1,4 +1,4 @@
-// The sky: about 9,000 stars with the spread of brightness and colour of the real naked-eye sky, the
+// The sky: about 13,000 stars with the spread of brightness and colour of the real dark sky, the
 // Milky Way as a faint glow (baked once into a cube map), and an exposure that dims both when something
 // bright fills the view, as eyes and cameras do. Everything sits in the sky scene (engine.js), which is
 // drawn first, with no depth, around the camera.
@@ -10,11 +10,12 @@ import {bake} from './bake.js';
 import {MILKY_WAY, SKY_VERT, SKY_FRAG, STAR_VERT, STAR_FRAG} from './shaders.js';
 
 const V3 = THREE.Vector3;
-// The galaxy's plane (where the old star band was) and the direction of its centre.
-const qGal = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.05, 0.4, 0.2));
-const galN = new V3(0, 1, 0).applyQuaternion(qGal), galC = new V3(Math.cos(2.2), 0, Math.sin(2.2)).applyQuaternion(qGal), galE = new V3().crossVectors(galN, galC);
+// The galaxy's pole and the direction of its centre (universe frame). Chosen so that from the start
+// orbit the Milky Way's core sits just above Veyra's limb, ahead and a little left, with the band
+// climbing to the upper right; the sun is over 100° away from the core.
+const galN = new V3(-0.3315, -0.5585, -0.7604).normalize(), galC = new V3(0.21, 0.7421, -0.6366).normalize(), galE = new V3().crossVectors(galN, galC);
 
-const N_STARS = 9000, MAG_MIN = -1.4, MAG_MAX = 6.5, STAR_R = 2800;
+const N_STARS = 13000, MAG_MIN = -1.4, MAG_MAX = 7.0, STAR_R = 2800;
 // Star colour by B-V colour index, hot blue-white to cool orange, softened toward white as the eye sees it.
 const BV = [[-0.3, 0.62, 0.72, 1.0], [0.0, 0.80, 0.86, 1.0], [0.3, 0.96, 0.96, 1.0], [0.6, 1.0, 0.95, 0.86], [1.0, 1.0, 0.86, 0.68], [1.5, 1.0, 0.74, 0.48], [2.0, 1.0, 0.62, 0.36]];
 function bvColor(bv, out, o) {
@@ -49,14 +50,15 @@ export function buildSky() {
   stars.frustumCulled = false; stars.renderOrder = -1; skyG.add(stars);
 
   const mw = bake(512, MILKY_WAY, {gN: {value: galN}, gC: {value: galC}});
-  mwIntensity = {value: 0.022};
+  mwIntensity = {value: 0.19};
   const glow = new THREE.Mesh(new THREE.SphereGeometry(STAR_R * 1.02, 48, 24), new THREE.ShaderMaterial({uniforms: {map: {value: mw.texture}, exposure: uniforms.exposure, intensity: mwIntensity},
     vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthTest: false, depthWrite: false}));
   glow.frustumCulled = false; glow.renderOrder = -2; skyG.add(glow);
 }
 
-// Exposure: how much of the view is taken by sunlit Veyra or Tal (or the sun itself) sets how bright
-// the sky can look. It adapts over a second or two. bodies: [{pos (render space), radius, albedo}].
+// Exposure: how much of the view is taken by sunlit Veyra or Tal sets how bright the sky can look,
+// gently (never below half), and the sun itself in view washes it out almost entirely. It adapts over
+// a second or two. bodies: [{pos (render space), radius, albedo}].
 const camDir = new V3(), tv = new V3();
 let exposure = 1;
 // Fraction of a circular view of angular radius v covered by a disc of angular radius a at angle th.
@@ -74,8 +76,8 @@ export function updateSky(dt, cam, bodies) {
     const cover = dist <= radius ? 1 : coverage(camDir.angleTo(tv), Math.asin(radius / dist), v);
     b += cover * albedo * (0.5 - 0.5 * tv.normalize().dot(sunDir)); // lit fraction of the side we see
   }
-  b += 4 * (1 - smooth(v * 0.9, v + 0.25, camDir.angleTo(sunDir))); // the sun in view
-  const target = clamp(1 / (1 + 4 * b), 0.1, 1);
+  const sun = 1 - smooth(v * 0.9, v + 0.25, camDir.angleTo(sunDir)); // the sun in view
+  const target = Math.max(0.5, 1 / (1 + 1.2 * b)) * (1 - 0.85 * sun);
   exposure += (target - exposure) * (1 - Math.exp(-dt * 1.5));
   uniforms.exposure.value = exposure;
 }
