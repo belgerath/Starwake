@@ -1,10 +1,10 @@
 // HTML overlay: flight readouts, body and motion markers, flight-computer buttons, toasts, intro card.
 // UI state is read from S/O every frame (with change checks), so physics never needs to call the HUD.
 import * as THREE from 'three';
-import {WARPS, MOON_R} from './config.js';
+import {WARPS, MOON_R, A_MAIN} from './config.js';
 import {fmt, $} from './util.js';
 import {app, cam} from './engine.js';
-import {S, O, relVel} from './physics.js';
+import {S, O, relVel, thrustScale} from './physics.js';
 import {W} from './world.js';
 
 const V3 = THREE.Vector3;
@@ -30,6 +30,8 @@ export function initHud(actions) {
   $('warpDn').addEventListener('click', () => actions.warpStep(-1));
   $('launchBtn').addEventListener('click', actions.launch);
   $('talBtn').addEventListener('click', actions.startTal);
+  $('retryBtn').addEventListener('click', actions.retry);
+  $('orbitBtn').addEventListener('click', actions.backToOrbit);
   const track = $('thrTrack');
   const showTouch = () => { $('touch').hidden = false; $('keysTouch').hidden = false; $('keysKb').hidden = true; trackH = track.clientHeight || trackH; };
   if (window.matchMedia && matchMedia('(pointer: coarse)').matches) showTouch();
@@ -54,6 +56,12 @@ export function setStatus(text) { $('status').textContent = text; }
 export function setReady() { $('status').hidden = true; $('launchBtn').hidden = false; $('talBtn').hidden = false; }
 export function hideIntro() { $('intro').hidden = true; $('launchBtn').blur(); $('talBtn').blur(); }
 export function showIntro(btnLabel) { $('launchBtn').textContent = btnLabel; $('intro').hidden = false; }
+// Crash card: what went wrong, Try again (from the checkpoint, when there is one) and Back to orbit.
+export function showCrash(msg, canRetry) {
+  $('crashMsg').textContent = msg; $('retryBtn').hidden = !canRetry; $('crash').hidden = false;
+  (canRetry ? $('retryBtn') : $('orbitBtn')).focus({preventScroll: true});
+}
+export function hideCrash() { $('crash').hidden = true; $('retryBtn').blur(); $('orbitBtn').blur(); }
 
 // ---- per-frame UI state ----
 const MODES = ['Chase', 'Bridge', 'Map'];
@@ -70,29 +78,39 @@ export function refreshUI() {
 
 const kmTxt = m => m === Infinity ? 'Escape' : (m < 0 ? '−' : '') + fmt(Math.abs(m) / 1000);
 const slow = v => Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : fmt(Math.abs(v)); // a decimal when it matters, near the ground
+// Touchdown light with the legs down: green when a touchdown now would be safe, otherwise what is wrong.
+const READY = {legs: 'Legs coming down', ok: 'Ready to land', fast: 'Descent too fast', drift: 'Drifting sideways', tilt: 'Not upright', steep: 'Ground too steep'};
 let lastHud = '';
 // Two sets of readouts: orbital (speed, altitude, apoapsis, periapsis), and low over Tal, relative to
-// the ground (ground speed, height above the ground, horizontal speed, time to impact) with a braking cue.
+// the ground (ground speed, height of the ship's lowest point above the ground, horizontal speed, time
+// to impact) with a braking cue, then the touchdown light once the legs are down.
 export function updateHud() {
-  const g = O.surf, pc = Math.round(S.throttle * 100);
-  const s = fmt(O.speed), a = g ? (O.agl < 1e4 ? fmt(O.agl) : fmt(O.agl / 1000)) : fmt(O.alt / 1000);
+  const g = O.surf, pc = Math.round(S.throttle * 100), sc = thrustScale(), fine = sc < 1, pos = Math.min(1, S.throttle / sc);
+  const s = fmt(O.speed), a = g ? (O.clear < 1e4 ? fmt(Math.max(0, O.clear)) : fmt(O.clear / 1000)) : fmt(O.alt / 1000);
   const v = (O.vv < -0.05 ? '−' : '+') + (g ? slow(O.vv) : fmt(Math.abs(O.vv)));
   const ap = g ? slow(O.hs) : kmTxt(O.ap), pe = g ? (O.impact === Infinity ? 'None' : fmt(O.impact)) : kmTxt(O.pe);
   const cue = g && O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
-  const key = [g, s, a, v, ap, pe, pc, O.name, cue].join('|'); if (key === lastHud) return; lastHud = key;
+  const land = S.landed ? 'Landed' : (g && S.legsDown && !cue && O.ready ? READY[O.ready] : '');
+  const hover = fine && g ? Math.min(1, O.g / A_MAIN / sc) : -1;
+  const key = [g, s, a, v, ap, pe, pc, pos.toFixed(3), O.name, cue, land, hover.toFixed(2), trackH].join('|'); if (key === lastHud) return; lastHud = key;
   $('spdLab').textContent = g ? 'Ground speed' : 'Speed'; $('spd').textContent = s;
-  $('altLab').textContent = g ? 'Height' : 'Altitude · ' + O.name; $('alt').textContent = a; $('altU').textContent = g && O.agl < 1e4 ? 'm' : 'km';
+  $('altLab').textContent = g ? 'Height' : 'Altitude · ' + O.name; $('alt').textContent = a; $('altU').textContent = g && O.clear < 1e4 ? 'm' : 'km';
   $('vsp').textContent = v;
   $('apLab').textContent = g ? 'Horizontal' : 'Apoapsis'; $('ap').textContent = ap; $('apU').textContent = g ? 'm/s' : 'km'; $('apU').hidden = !g && O.ap === Infinity;
   $('peLab').textContent = g ? 'Impact in' : 'Periapsis'; $('pe').textContent = pe; $('peU').textContent = g ? 's' : 'km'; $('peU').hidden = g && O.impact === Infinity;
   $('pe').classList.toggle('warn', g ? O.impact < 30 : O.pe < 0);
   $('cue').hidden = !cue; $('cue').textContent = cue; $('cue').classList.toggle('now', cue === 'Brake now');
-  $('thrPct').textContent = pc + '%'; $('thrBar').style.width = pc + '%';
+  $('land').hidden = !land; $('land').textContent = land; $('land').classList.toggle('ok', land === 'Landed' || land === READY.ok);
+  // Thrust: the readout shows the real percentage; the bar, slider and knob show the slider's range (0 to 18% when fine).
+  $('thrName').textContent = fine ? 'Fine' : 'Throttle'; $('thrPct').textContent = pc + '%'; $('thrBar').style.width = (pos * 100) + '%';
+  $('thrLab').textContent = fine ? 'Fine' : 'Thrust';
   const travel = Math.max(0, trackH - 44);
-  $('thrKnob').style.transform = 'translateY(' + (-S.throttle * travel) + 'px)'; $('thrFillT').style.height = (S.throttle * travel + 30) + 'px';
+  $('thrKnob').style.transform = 'translateY(' + (-pos * travel) + 'px)'; $('thrFillT').style.height = (pos * travel + 30) + 'px';
+  $('thrHover').hidden = hover < 0; if (hover >= 0) $('thrHover').style.transform = 'translateY(' + (-(22 + hover * travel)) + 'px)';
 }
 
 // ---- markers ----
+const AVOID = ['readouts', 'cue', 'land']; // HUD boxes a marker pinned to the screen edge moves out of, left to right
 const pv = new V3(), cv = new V3(), tV = new V3(), dirV = new V3(), zero = new V3(), sp1 = {x: 0, y: 0, behind: false};
 function screenOf(p, out) {
   cv.copy(p).applyMatrix4(cam.matrixWorldInverse); const behind = cv.z > 0; tV.copy(p).project(cam);
@@ -105,6 +123,8 @@ function placeEl(el, p) {
 }
 export function updateMarkers() {
   const w = app.clientWidth, h = app.clientHeight, half = Math.tan(cam.fov * Math.PI / 360);
+  const apB = app.getBoundingClientRect(), boxes = [];
+  for (const id of AVOID) { const el = $(id); if (el.hidden) continue; const b = el.getBoundingClientRect(); boxes.push({l: b.left - apB.left, r: b.right - apB.left, t: b.top - apB.top, b: b.bottom - apB.top}); }
   for (const m of markers) {
     m.b.mesh.getWorldPosition(pv); const dist = pv.distanceTo(cam.position); const pxR = (m.b.radius / Math.max(dist, m.b.radius + 0.01)) / half * (h / 2);
     screenOf(pv, sp1); let x = sp1.x, y = sp1.y; if (sp1.behind) { x = w - x; y = h - y; }
@@ -113,6 +133,8 @@ export function updateMarkers() {
     if (!on) { // pin to the screen edge in the body's direction
       edge = true; const cx = w / 2, cy = h / 2, pad = 44; let dx = x - cx, dy = y - cy; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) dy = 1;
       const s = Math.min((cx - pad) / Math.max(Math.abs(dx), 1e-6), (cy - pad) / Math.max(Math.abs(dy), 1e-6)); x = cx + dx * s; y = cy + dy * s;
+      // Clear of the readouts, braking cue and touchdown light: below them on the left edge, to their right on the top edge.
+      for (const b of boxes) if (x > b.l - 24 && x < b.r + 24 && y > b.t - 24 && y < b.b + 24) { if (x - pad < 1) y = b.b + 34; else x = b.r + 60; }
     } else if (pxR > 10 && (pxR < 70 || S.camMode === 2)) y -= pxR + 16;
     m.el.classList.toggle('edge', edge); m.el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-50%)';
     m.tag.textContent = (S.camMode === 2 && m.b.key === 'planet') ? m.b.name : m.b.name + ' · ' + fmt(Math.max(0, m.b.alt()) / 1000) + ' km';

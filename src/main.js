@@ -3,20 +3,23 @@ import './style.css';
 import {WARPS, R, MOON_R} from './config.js';
 import {clamp} from './util.js';
 import {renderer, scene, skyScene, skyG, cam, icam, sunDir} from './engine.js';
-import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos} from './physics.js';
+import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos, hasCheckpoint, restoreCheckpoint} from './physics.js';
 import {W, buildWorld, updateWorld, updateTerrain, updateRocks, updatePrediction, resetPrediction} from './world.js';
 import {buildSky, updateSky} from './sky.js';
 import {updateBridge} from './ship/bridge.js';
 import {updateCamera, snapCamera} from './camera.js';
 import {initInput, readInput} from './input.js';
-import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro} from './hud.js';
+import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro, showCrash, hideCrash} from './hud.js';
 
-let ready = false;
+let ready = false, crashShown = false;
 
-function launch() { S.launched = true; S.paused = false; hideIntro(); }
+function launch() { if (S.crash) return; S.launched = true; S.paused = false; hideIntro(); }
 // Testing shortcut: a low orbit around Tal (from the intro card or the pause card).
 function startTal() { initTalOrbit(sunDir); setMode(0); launch(); }
-function togglePause() { if (S.paused) { launch(); return; } S.paused = true; S.warpIdx = 0; showIntro('Resume'); }
+function togglePause() { if (S.crash) return; if (S.paused) { launch(); return; } S.paused = true; S.warpIdx = 0; showIntro('Resume'); }
+// After a crash: Try again from the checkpoint (15 km up on the way down, or the last landing), or Back to orbit.
+function retry() { if (!restoreCheckpoint()) { backToOrbit(); return; } hideCrash(); crashShown = false; snapCamera(); launch(); }
+function backToOrbit() { hideCrash(); crashShown = false; startTal(); }
 function setMode(m) {
   S.camMode = m; S.camYaw = 0; S.camPitch = 0;
   if (m === 2) { // start the map looking down on the ship from above the body it orbits
@@ -31,7 +34,7 @@ function warpStep(d) {
   const max = maxWarpIdx(), want = clamp(S.warpIdx + d, 0, WARPS.length - 1);
   if (want > max) { toast('warp', 'Time warp is limited this close to a surface.'); S.warpIdx = max; } else S.warpIdx = want;
 }
-const actions = {launch, startTal, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady: () => ready};
+const actions = {launch, startTal, retry, backToOrbit, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady: () => ready};
 
 setNotifier(toast);
 initInput(actions);
@@ -51,6 +54,7 @@ function frame(now) {
   const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now; rt += dt;
   if (S.launched && !S.paused) stepFlight(dt, readInput(dt));
   else { orbInfo(); S.inPitch *= 0.9; S.inYaw *= 0.9; }
+  if (S.crash && !crashShown) { crashShown = true; showCrash(S.crash, hasCheckpoint()); }
   updateWorld(dt, rt);
   updateCamera(dt, rt);
   updateTerrain(cam);
@@ -71,7 +75,7 @@ setTimeout(() => { // let the intro card paint before the GPU bakes the planet
   initOrbit(sunDir); setMode(0); initMarkers(actions);
   ready = true; setReady();
   if (new URLSearchParams(location.search).has('debug')) {
-    window.starwake = {S, O, actions, W, cam, talAgl, talGroundVel};
+    window.starwake = {S, O, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo};
     dbg = document.createElement('div'); dbg.id = 'dbg'; document.getElementById('hud').appendChild(dbg);
   }
   requestAnimationFrame(frame);
