@@ -1,7 +1,7 @@
 // HTML overlay: flight readouts, body and motion markers, flight-computer buttons, toasts, intro card.
 // UI state is read from S/O every frame (with change checks), so physics never needs to call the HUD.
 import * as THREE from 'three';
-import {WARPS} from './config.js';
+import {WARPS, MOON_R} from './config.js';
 import {fmt, $} from './util.js';
 import {app, cam} from './engine.js';
 import {S, O, relVel} from './physics.js';
@@ -29,6 +29,7 @@ export function initHud(actions) {
   $('warpUp').addEventListener('click', () => actions.warpStep(1));
   $('warpDn').addEventListener('click', () => actions.warpStep(-1));
   $('launchBtn').addEventListener('click', actions.launch);
+  $('talBtn').addEventListener('click', actions.startTal);
   const track = $('thrTrack');
   const showTouch = () => { $('touch').hidden = false; $('keysTouch').hidden = false; $('keysKb').hidden = true; trackH = track.clientHeight || trackH; };
   if (window.matchMedia && matchMedia('(pointer: coarse)').matches) showTouch();
@@ -40,7 +41,7 @@ export function initHud(actions) {
 // Tappable body markers: tap to have the flight computer face that body.
 export function initMarkers(actions) {
   const bodies = [{name: 'Veyra', key: 'planet', mesh: W.planet, radius: W.planet.geometry.parameters.radius, alt: () => O.altPlanet},
-                  {name: 'Tal', key: 'moon', mesh: W.moon, radius: W.moon.geometry.parameters.radius, alt: () => O.altMoon}];
+                  {name: 'Tal', key: 'moon', mesh: W.moon, radius: MOON_R, alt: () => O.altMoon}];
   markers = bodies.map(b => {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'marker'; el.setAttribute('aria-label', 'Turn to face ' + b.name);
     el.innerHTML = '<span class="ring"></span><span class="tag"></span>';
@@ -50,8 +51,8 @@ export function initMarkers(actions) {
 }
 
 export function setStatus(text) { $('status').textContent = text; }
-export function setReady() { $('status').hidden = true; $('launchBtn').hidden = false; }
-export function hideIntro() { $('intro').hidden = true; $('launchBtn').blur(); }
+export function setReady() { $('status').hidden = true; $('launchBtn').hidden = false; $('talBtn').hidden = false; }
+export function hideIntro() { $('intro').hidden = true; $('launchBtn').blur(); $('talBtn').blur(); }
 export function showIntro(btnLabel) { $('launchBtn').textContent = btnLabel; $('intro').hidden = false; }
 
 // ---- per-frame UI state ----

@@ -29,7 +29,7 @@ function resize() {
 if (window.ResizeObserver) new ResizeObserver(resize).observe(app); else addEventListener('resize', resize);
 resize();
 
-export const sunDir = SUN_DIR;
+export const sunDir = new THREE.Vector3(...SUN_DIR).normalize();
 
 // ---- sky ----
 export const skyG = new THREE.Group(); skyScene.add(skyG);

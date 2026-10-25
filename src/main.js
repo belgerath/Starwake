@@ -3,8 +3,8 @@ import './style.css';
 import {WARPS} from './config.js';
 import {clamp} from './util.js';
 import {renderer, scene, skyScene, skyG, cam, icam, sunDir} from './engine.js';
-import {S, O, initOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier} from './physics.js';
-import {W, buildWorld, updateWorld, updateRocks, updatePrediction, resetPrediction} from './world.js';
+import {S, O, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl} from './physics.js';
+import {W, buildWorld, updateWorld, updateTerrain, updateRocks, updatePrediction, resetPrediction} from './world.js';
 import {updateBridge} from './ship/bridge.js';
 import {updateCamera, snapCamera} from './camera.js';
 import {initInput, readInput} from './input.js';
@@ -13,6 +13,8 @@ import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setSta
 let ready = false;
 
 function launch() { S.launched = true; S.paused = false; hideIntro(); }
+// Testing shortcut: a low orbit around Tal (from the intro card or the pause card).
+function startTal() { initTalOrbit(sunDir); setMode(0); launch(); }
 function togglePause() { if (S.paused) { launch(); return; } S.paused = true; S.warpIdx = 0; showIntro('Resume'); }
 function setMode(m) {
   S.camMode = m; S.camYaw = 0; S.camPitch = 0;
@@ -25,7 +27,7 @@ function warpStep(d) {
   const max = maxWarpIdx(), want = clamp(S.warpIdx + d, 0, WARPS.length - 1);
   if (want > max) { toast('warp', 'Time warp is limited this close to a surface.'); S.warpIdx = max; } else S.warpIdx = want;
 }
-const actions = {launch, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady: () => ready};
+const actions = {launch, startTal, togglePause, setMode, cycleCam, toggleHold, warpStep, isReady: () => ready};
 
 setNotifier(toast);
 initInput(actions);
@@ -38,6 +40,7 @@ function frame(now) {
   else { orbInfo(); S.inPitch *= 0.9; S.inYaw *= 0.9; }
   updateWorld(dt, rt);
   updateCamera(dt, rt);
+  updateTerrain(cam);
   updateRocks();
   updatePrediction(dt);
   skyG.position.copy(cam.position);
@@ -51,6 +54,6 @@ setTimeout(() => { // let the intro card paint before the GPU bakes the planet
   try { buildWorld(); } catch (err) { console.error(err); setStatus('Could not build the world on this device.'); return; }
   initOrbit(sunDir); setMode(0); initMarkers(actions);
   ready = true; setReady();
-  if (new URLSearchParams(location.search).has('debug')) window.starwake = {S, O, actions, W};
+  if (new URLSearchParams(location.search).has('debug')) window.starwake = {S, O, actions, W, cam, talAgl};
   requestAnimationFrame(frame);
 }, 40);
