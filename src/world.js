@@ -1,5 +1,5 @@
 // Everything in the universe that gets drawn: Veyra (surface, clouds, atmosphere), the ring and
-// its local rocks, Tal, the orbit lines for map view, and the ship.
+// its local rocks, Tal (terrain.js), the orbit lines for map view, and the ship.
 //
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
@@ -10,6 +10,7 @@ import {scene, sunDir, sunLight, hemi, makeEnv} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
 import {S, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
+import {createTerrain} from './terrain.js';
 import {buildDestroyer} from './ship/destroyer.js';
 import {buildBridge} from './ship/bridge.js';
 
@@ -59,7 +60,9 @@ export function buildWorld() {
   W.ring = new THREE.Mesh(rg, W.ringMat); W.ring.renderOrder = 3; W.tiltG.add(W.ring);
   const moonPlane = new THREE.Group(); moonPlane.rotation.x = MOON_INC; W.tiltG.add(moonPlane);
   W.moonPivot = new THREE.Group(); moonPlane.add(W.moonPivot);
-  W.moon = new THREE.Mesh(new THREE.SphereGeometry(MOON_R, 160, 120), surfMat(mA, mN, null, [0, 0, 0], 0)); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);
+  // W.moon is Tal's body frame (tal.js heights and talQuat() live here); the ground is terrain chunks in it.
+  W.moon = new THREE.Group(); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);
+  W.terrain = createTerrain(W.moon, mA.texture, mN.texture);
   const mpts = []; for (let i = 0; i <= 360; i++) { const a = i / 360 * TAU; mpts.push(new V3(MOON_A * Math.cos(a), 0, -MOON_A * Math.sin(a))); }
   W.moonLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(mpts), new THREE.LineBasicMaterial({color: 0x8ea2b6, transparent: true, opacity: 0.4, depthWrite: false})); W.moonLine.frustumCulled = false; moonPlane.add(W.moonLine);
   const og = new THREE.BufferGeometry(); og.setAttribute('position', new THREE.BufferAttribute(W.predPos, 3).setUsage(THREE.DynamicDrawUsage)); og.setDrawRange(0, 0);
@@ -82,7 +85,8 @@ export function updateWorld(dt, rt) {
   const ship = W.ship;
   ship.root.quaternion.copy(S.quat); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
   scene.updateMatrixWorld();
-  for (const m of [W.planet, W.cloudMesh, W.moon]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
+  for (const m of [W.planet, W.cloudMesh]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
+  W.terrain.updateUniforms(W.moon);
   W.atmo.material.uniforms.center.value.copy(W.world.position); W.ringMat.uniforms.center.value.copy(W.world.position);
   // Fade the ring sheet when flying through it, where individual rocks take over.
   peq.copy(S.pos).applyQuaternion(qTiltInv); const rs = Math.hypot(peq.x, peq.z);
@@ -138,6 +142,10 @@ export function updateRocks() {
   }
   rocks.count = n; rocks.instanceMatrix.needsUpdate = true; if (rocks.instanceColor) rocks.instanceColor.needsUpdate = true;
 }
+
+// After the camera moves: refine Tal's ground around it.
+const camBody = new V3();
+export function updateTerrain(cam) { W.terrain.update(W.moon.worldToLocal(camBody.copy(cam.position))); }
 
 let predT = 1e9;
 export function resetPrediction() { predT = 1e9; }

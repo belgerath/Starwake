@@ -183,3 +183,35 @@ void main(){
 #include <tonemapping_fragment>
 #include <encodings_fragment>
 }`;
+
+// Tal's ground (terrain.js). Chunk vertices are relative to the chunk centre; modelViewMatrix is
+// composed in doubles by three.js, so positions near the camera stay precise. Normals and vDir are in
+// Tal's body frame: vDir picks the baked colour and normal maps, the same ones Tal used as a sphere.
+export const TERRAIN_VERT=`#include <common>
+#include <logdepthbuf_pars_vertex>
+uniform vec3 moonC;uniform mat3 objRot;
+varying vec3 vDir;varying vec3 vN;varying vec3 vW;
+void main(){vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vDir=(w.xyz-moonC)*objRot;vN=normal;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+#include <logdepthbuf_vertex>
+}`;
+// Lighting as PLANET_FRAG does for Tal. Far away the baked normal map (5 km per texel) is finer than the
+// mesh; close up the mesh is finer, so the normal blends from map to mesh with distance (mapFade, metres).
+export const TERRAIN_FRAG=`#include <logdepthbuf_pars_fragment>
+uniform samplerCube albedoMap;uniform samplerCube normalMap;uniform float sunI;uniform vec3 sunDir;uniform mat3 objRot;uniform vec2 mapFade;
+varying vec3 vDir;varying vec3 vN;varying vec3 vW;
+`+NOISE+`
+void main(){
+#include <logdepthbuf_fragment>
+  vec3 d=normalize(vDir);vec4 A=textureCube(albedoMap,d);vec4 Nt=textureCube(normalMap,d);
+  vec3 nMap=normalize(d+(Nt.xyz*2.0-1.0)*0.5);
+  vec3 nObj=normalize(mix(normalize(vN),nMap,smoothstep(mapFade.x,mapFade.y,length(vW-cameraPosition))));
+  float px=length(fwidth(d));float detF=1.0-smoothstep(0.0005,0.002,px);
+  float n1=0.0;if(detF>0.0){n1=snoise(d*900.0)*0.65+snoise(d*2700.0)*0.35;}
+  vec3 alb=pow(A.rgb,vec3(2.2))*(1.0+n1*0.08*detF);
+  vec3 N=normalize(objRot*nObj),Ng=normalize(objRot*d),L=normalize(sunDir);
+  float diff=max(dot(N,L),0.0)*smoothstep(-0.06,0.1,dot(Ng,L));
+  gl_FragColor=vec4(alb*diff*vec3(1.0,0.97,0.92)*sunI+alb*0.003,1.0);
+#include <tonemapping_fragment>
+#include <encodings_fragment>
+}`;

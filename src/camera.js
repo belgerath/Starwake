@@ -4,12 +4,13 @@ import * as THREE from 'three';
 import {SHIP_SCALE, BRIDGE_PITCH, CHASE, R} from './config.js';
 import {clamp} from './util.js';
 import {cam, icam} from './engine.js';
-import {S} from './physics.js';
+import {S, talAgl, moonPos} from './physics.js';
 import {W} from './world.js';
 import {IN} from './input.js';
 
 const camQ = new THREE.Quaternion(), tQ = new THREE.Quaternion(), tE2 = new THREE.Euler(0, 0, 0, 'YXZ');
-const off = new THREE.Vector3(), look = new THREE.Vector3(), fwd = new THREE.Vector3(), up = new THREE.Vector3(), dirV = new THREE.Vector3();
+const off = new THREE.Vector3(), look = new THREE.Vector3(), fwd = new THREE.Vector3(), up = new THREE.Vector3(), dirV = new THREE.Vector3(), camU = new THREE.Vector3(), mP = new THREE.Vector3();
+const chaseOff = new THREE.Vector3(...CHASE), CAM_CLEAR = 40; // the chase camera stays at least this far above Tal's ground
 let snap = true;
 export function snapCamera() { snap = true; }
 
@@ -24,8 +25,11 @@ export function updateCamera(dt, rt) {
   if (mode === 0) {
     if (snap) camQ.copy(S.quat); else camQ.slerp(S.quat, 1 - Math.exp(-dt * 3));
     const yawV = S.camYaw + (S.launched ? 0 : Math.sin(rt * 0.25) * 0.55);
-    off.copy(CHASE); off.z += S.boostAmt * 2; off.multiplyScalar(SHIP_SCALE * S.camZoom);
+    off.copy(chaseOff); off.z += S.boostAmt * 2; off.multiplyScalar(SHIP_SCALE * S.camZoom);
     tE2.set(S.camPitch, yawV, 0, 'YXZ'); tQ.setFromEuler(tE2); off.applyQuaternion(tQ).applyQuaternion(camQ);
+    // Never underground: lift the camera straight up from Tal's surface if it would dip below it.
+    camU.copy(S.pos).add(off); const agl = talAgl(camU, S.t);
+    if (agl < CAM_CLEAR) off.addScaledVector(camU.sub(moonPos(S.t, mP)).normalize(), CAM_CLEAR - agl);
     cam.position.copy(off);
     const orb = clamp((Math.abs(yawV) + Math.abs(S.camPitch)) / 0.5, 0, 1);
     fwd.set(0, 0, -1).applyQuaternion(camQ); up.set(0, 1, 0).applyQuaternion(camQ);

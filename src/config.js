@@ -1,6 +1,6 @@
 // World and ship constants. Everything is in SI units: metres, seconds, m/s, m/s².
 // The universe frame is inertial and centred on Veyra; physics never touches render coordinates.
-import * as THREE from 'three';
+// Plain numbers only (no three.js), so the terrain Web Worker can import this without the library.
 
 export const TAU = Math.PI * 2;
 
@@ -18,12 +18,21 @@ export const MOON_R = 1.64e6;
 export const GM_M = 4.03e12;
 export const MOON_A = 4.2e7;       // orbit radius
 export const MOON_INC = 0.09;      // orbit inclination to Veyra's equator
-export const MOON_FLOOR = 3e3;
+export const MOON_FLOOR = 500;     // hard deck above Tal's ground (not its mean radius) until landing exists
 export const SOI_M = MOON_A * Math.pow(GM_M / GM, 0.4);
 export const MOON_N = Math.sqrt((GM + GM_M) / Math.pow(MOON_A, 3));
 // Tal's terrain. MOON_H (GPU bake) and tal.js (JS, for meshes and collision) both use these.
 export const TAL_SEED = [1.9, 4.4, 6.6];
 export const TAL_RELIEF = 0.02 * MOON_R; // metres per unit of baked height, the same relief the normal map shows
+export const TAL_MAX_H = 0.3 * TAL_RELIEF; // no ground on Tal is higher than this above MOON_R (about 9.8 km)
+export const TAL_START_ALT = 30e3;       // "Start above Tal": circular orbit this high above the mean radius
+
+// Tal's terrain mesh: a cube-sphere quadtree of chunks, each GRID × GRID vertices. A chunk splits
+// into four when its size divided by its distance from the camera exceeds SPLIT.
+export const TERRAIN_GRID = 33;
+export const TERRAIN_MAX_LEVEL = 15;     // chunks 79 m across, 2.5 m between vertices
+export const TERRAIN_SPLIT = 1.5;
+export const TERRAIN_CACHE = 400;        // chunks kept in memory, including ones not drawn right now
 
 // Ring (equatorial)
 export const RING_IN = 1.7 * R;
@@ -44,14 +53,14 @@ export const ACC = [0.33, 0.33, 0.4];
 export const WARPS = [1, 10, 100, 1000];
 
 // Direction to the sun (fixed; Veyra's year is long compared with a play session)
-export const SUN_DIR = new THREE.Vector3(0.65, 0.32, 1).normalize();
+export const SUN_DIR = [0.65, 0.32, 1]; // normalised where it is used (engine.js sunDir)
 
 // Rendering
 export const SUN_I = 3.0;
 export const UVS = 2.4;            // hull panel texture repeat
 export const BRIDGE_PITCH = -0.14;
 export const RADAR_RANGE = 6e7;
-export const CHASE = new THREE.Vector3(0, 4.8, 21.8); // chase camera offset in ship units
+export const CHASE = [0, 4.8, 21.8]; // chase camera offset in ship units
 export const NPRED = 2400;         // predicted-orbit points in map view
 export const ROCK_MAX = 900, ROCK_CELL = 3000, ROCK_VIS = 18000;
 export const MONO = '"IBM Plex Mono",ui-monospace,Menlo,monospace';

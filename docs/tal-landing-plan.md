@@ -35,13 +35,19 @@ These are recommendations. Change any of them before the step that needs it.
 - Crater rims were a sheer cliff (up to 2.6 km on big craters). They are now continuous with steep inner walls (about 25 to 35°), which keeps the crisp look from orbit and gives ground you can land near.
 - Visible change: Tal's craters are in new places. Veyra is byte-for-byte unchanged.
 
-### 2. Terrain you can see
+### 2. Terrain you can see (done)
 
 - Chunked level-of-detail terrain replaces Tal's sphere at every distance: a cube-sphere quadtree whose chunks split as you get closer, so detail follows the ship down.
 - Chunks are built in a Web Worker from `talHeight`, so the drawn ground and the collision ground are the same numbers.
 - Colours come from the same baked map as now, so Tal looks the same from orbit.
 - Tal's hard deck follows the real ground (a cushion 500 m above it) until legs exist. The chase camera never goes underground.
 - "Start above Tal" on the intro card.
+
+What was built: `src/terrain.js` (quadtree, worker pool, cache), `src/terrain-build.js` (one chunk, pure), `src/terrain-worker.js`. Chunks are 33×33 vertices with skirts; 15 levels, down to 2.5 m between vertices. About 110 chunks are drawn in a 30 km orbit and about 200 at the deck. A chunk takes 13 to 19 ms to build on a desktop. From 1,000 km Tal looks the same as the old sphere. HUD buttons now sit above the body markers, so a marker pinned to the screen edge cannot take a tap meant for Boost or the camera button.
+
+Found along the way, for later steps:
+- Nose up (tail-down), the chase camera hangs below the ship and sees only sky. Step 5 needs a landing camera that looks down past the hull.
+- Map view stays centred on Veyra even in orbit around Tal, so Tal is off-screen. Step 4 should centre the map on the body you are orbiting.
 
 ### 3. Ground detail and performance
 
