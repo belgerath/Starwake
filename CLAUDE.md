@@ -87,6 +87,8 @@ Key ideas:
 
 ## Roadmap
 
+The draft game plan (premise, places, the loop, phases, open decisions) is `docs/game-plan.md`. Until its decisions are confirmed, the order below stands.
+
 1. **Landing on Tal**: works (steps 1 to 5); polish next (step 6). Plan, decisions and status in `docs/tal-landing-plan.md`.
 2. **Landing on Veyra**: same terrain system plus atmospheric entry (heating, drag, descent).
 3. **Core loop**: fuel and delta-v budget so burns cost something; places worth reaching (survey sites, a station to refuel and dock with, wrecks).
