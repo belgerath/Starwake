@@ -1,6 +1,6 @@
 # Starwake
 
-A 3D space exploration game with real-scale, Newtonian flight. You fly the Mudlark, a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal, and dock at Tumbledown, a huge station for outcasts and misfits. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
+A 3D space exploration game with real-scale, Newtonian flight. You fly the Mudlark, a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal, and dock at Tumbledown, a huge station for outcasts and misfits, where a hangar full of aliens, an easy customs check and a trader end the first run. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
 
 ## Commands
 
@@ -13,7 +13,7 @@ npm run build      # production build into dist/
 npm run preview    # serve dist/ locally
 ```
 
-Add `?debug` to the URL to get `window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo}` in the console (state, orbit readouts, Tumbledown's and the Halberd's position and velocity, actions, world objects, camera, height above and velocity of Tal's ground, Tal's position, readout refresh after editing `S`; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
+Add `?debug` to the URL to get `window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo, hangar}` in the console (state, orbit readouts, Tumbledown's and the Halberd's position and velocity, actions, world objects, camera, height above and velocity of Tal's ground, Tal's position, readout refresh after editing `S`, the hangar module once loaded; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
 
 Before finishing any change: `npm test` passes, `npm run build` succeeds, and the change has been looked at in a browser (a phone-sized viewport too if it touches the HUD or controls).
 
@@ -36,8 +36,12 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 | `src/camera.js` | Chase, cockpit and map views; chase blends into a landing view while the gear is down. |
 | `src/input.js` | Keyboard, mouse, touch gestures, on-screen buttons. Produces the input for `stepFlight`. |
 | `src/hud.js` | HTML overlay: readouts, markers, flight-computer buttons, toasts, braking cue, touchdown and docking light, docking offer, intro, docked and crash cards. Reads state each frame. |
-| `src/save.js` | One save in `localStorage` (`starwake.save`), the physics snapshot. Every call may quietly do nothing (private windows). |
-| `src/main.js` | Wiring and the frame loop: when to offer docking and when to save. |
+| `src/game.js` | The game around the flight, no DOM: credits, the hold, the first run (customs, then the trader) as cards with choices (`talk`, `choose`). Per-visit state resets on undocking. |
+| `src/hangar/` | The hangar, loaded on demand (`import()`) when you ask to dock. `hangar.js`: its own scene (the hall, the Mudlark on its pad, booth, stalls, cargo, the crowd and what each one does, the orbit camera, picking). `models.js`: loads and copies the models (GLTFLoader with meshopt), scales each to a height. `paths.js`: the walking loops and floor spots, pure, tested. `ui.js`: the overlay, cards, name tags, speech bubbles, gestures. |
+| `public/hangar/` | The hangar's models, CC0 (Quaternius characters, Kenney Space Kit props). Every file is listed with its source in `CREDITS.md`; keep it that way. |
+| `src/sound.js` | Web Audio, synthesized (no files): engine, lift and thruster beds, bay doors, hangar murmur, one-shots (clunk, crash, chime, stamp, coins, taps). Starts after the first tap or key; on/off remembered. |
+| `src/save.js` | One save in `localStorage` (`starwake.save`): the physics snapshot plus the game state. Every call may quietly do nothing (private windows). |
+| `src/main.js` | Wiring and the frame loop: when to offer docking, entering and leaving the hangar, sound events, when to save. |
 
 Key ideas:
 
@@ -46,6 +50,8 @@ Key ideas:
 - **Tal's body frame** is `W.moon` (a Group; Tal is tidally locked, so it turns once per orbit). `talQuat(t)` in physics gives the same rotation; heights from `tal.js` and terrain chunks live in this frame.
 - **Render order** per frame: sky scene (no depth), clear depth, main scene, then the bridge scene (only in bridge view) over it.
 - **Log depth buffer** is on (near 0.5 m, far 2e10 m). Custom shaders must include the `logdepthbuf` chunks (see `SURF_VERT` and the `*_FRAG` shaders).
+- **The hangar replaces space while docked**: its own scene and camera, drawn instead of the space render (physics keeps stepping, so the station and the Halberd move on). Its code and models are a separate chunk fetched when docking starts, so they are usually in by the time the doors close; until then the docked card shows progress (or why it failed, with Undock).
+- **Hangar models**: skinned Quaternius files carry the armature's scale outside the mesh, so their bounding boxes are about 100× too big; `models.js` sizes them from the first bone instead. Kenney's unlit materials become standard ones. The three.js add-ons they need are listed in `vite.config.js` `optimizeDeps` so the dev server does not reload the page on first docking.
 - **three.js is pinned to 0.128.0.** The code uses `outputEncoding`, `sRGBEncoding` and other pre-r152 APIs. Upgrading is a deliberate task, not a side effect.
 - `ringDens()` in `RING_FRAG` and `ringDensJS()` in `world.js` describe the same ring profile and must stay in sync.
 - `NOISE` and `MOON_H` in `shaders.js` and `noise.js` / `tal.js` describe the same terrain and must stay in sync. After changing either, run `npm run check:tal` (all 1.57 million texels must agree) and commit the refreshed `tests/fixtures/tal-bake.json`.
@@ -69,8 +75,9 @@ Key ideas:
 - Landed, the pose is fixed in Tal's body frame, so the ship turns with the ground at any warp. Lift above hover takes off.
 - Tumbledown: a wheel 2.6 km across turning once every 72 s, the bay at the back of its hub facing back along the orbit. Within 10 km (`dockRange`) and slower than 50 m/s relative (`dockSpeed`), "Request docking" and "Not now" appear and time warp drops to 1× (Not now hides it until you leave that range; after undocking it waits until you are 3 km out). Station control then flies the ship (brakes, goes round the station if needed, lines up 1 km behind it, flies into bay 3 at about 12 m/s, sets down on the pad); no input counts until it lets go. Docked, the pose is fixed in the station's frame at any warp. Undocking backs out, turns around once clear and lets go at 3 m/s. Warp up to 100× during the run. Hitting the station (hub, wheel and spokes, wings, dish) is a crash.
 - The Halberd flies a 420 km patrol orbit, starting 70 km ahead; the Mudlark passes 10 to 25 km under it. Both NPCs move under the same gravity as the ship.
-- Saving: on docking, every minute of flight, on pause and when the page is hidden; the intro card offers Continue and New game. The crash checkpoint is also kept within 20 km of the station and on docking.
-- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, hover (levels and stops drift, steering moves it, switching on nose-up keeps height) and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint; and docking: the offer and its limits, docking onto the pad (and staying through 1000× warp), going round from in front, undocking nose first, hitting the station, a save brought back exactly, the Halberd's pass. If a change fails one of these, it changed how the ship flies: confirm it is intended.
+- The first run: you start with 120 credits and 8 crates of glowmoss. In the hangar Inspector Drab walks over for customs: every answer clears you; slipping him 20 credits makes Mama Gorrit pay 10% more. Gorrit pays 150 a crate; one haggle has a 60% chance of 15% more and never lowers the price. Selling ends the first run. Customs again on every visit.
+- Saving: on docking, in the hangar after customs and the sale, every minute of flight, on pause and when the page is hidden; the intro card offers Continue and New game. The crash checkpoint is also kept within 20 km of the station and on docking.
+- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, hover (levels and stops drift, steering moves it, switching on nose-up keeps height) and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint; and docking: the offer and its limits, docking onto the pad (and staying through 1000× warp), going round from in front, undocking nose first, hitting the station, a save brought back exactly, the Halberd's pass. `tests/game.test.js` checks the first run's rules, `tests/hangar.test.js` that every walking path stays clear of the ship, the stalls and the walls. If a change fails one of these, it changed how the ship flies: confirm it is intended.
 
 ## Controls (touch is the primary target)
 
@@ -79,7 +86,8 @@ Key ideas:
 - Map view: one finger rotates the map, pinch zooms.
 - Right side: thrust slider and Boost (double thrust while held). In hover mode the slider is "Lift", with a green mark at hover. Left side: time warp, Prograde, Retrograde, Roll buttons, and Hover above them when low over Tal.
 - Tap Veyra, Tal, Tumbledown, the Halberd or the green motion markers to have the flight computer face them.
-- Tumbledown's marker shows its distance, and inside 100 km the speed relative to it. In range: Request docking or Not now at the top of the screen; Undock on the docked card.
+- Tumbledown's marker shows its distance, and inside 100 km the speed relative to it. In range: Request docking or Not now at the top of the screen.
+- Hangar: one finger or the mouse turns the view, pinch or the wheel zooms, a tap on someone talks to them (Drab and Gorrit open a card, the crowd says a line). Buttons: Customs, Market, Look around, Undock. Sound on and off is on the pause card.
 - Keyboard: W/S thrust, Z/X full/cut, A/D yaw, arrows pitch, Q/E roll, Shift boost, Space retro, F/R holds, G hover, `,`/`.` warp, C cycle camera, M map, Enter request docking or undock, Esc pause.
 
 ## Style
@@ -92,7 +100,8 @@ Key ideas:
 
 - Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground has real detail down to craters about 70 m across and roughness at 40 m.
 - Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
-- No fuel, cargo or money yet; docking ends at the docked card until the hangar (phase 3). Landing only on Tal.
+- Credits and cargo exist for the first run only: no jobs, upgrades or fuel yet. Landing only on Tal.
+- The hangar is a view, not a place to walk; the crowd follows set loops and can pass through each other.
 - The Halberd only flies; it does not scan or react yet.
 - The cockpit view reuses the old destroyer bridge interior, which is roomier than the transport's pod.
 
@@ -103,5 +112,5 @@ You fly a **small smuggler's transport** with contraband in the hold and small g
 1. **Landing on Tal**: works. Built in `docs/tal-landing-plan.md` (for the Halberd), then moved to the transport.
 2. **The new ship**: done (phase 1): the model, weak handling as data, hover mode, belly-down landing on Tal.
 3. **The station and docking**: works (phase 2): Tumbledown, "Request docking", automatic docking into bay 3 and undocking, the Halberd on patrol, saving.
-4. **The hangar**: aliens, customs, selling the contraband; the first mission end to end.
+4. **The hangar**: works (phase 3): bay 3 full of aliens and droids, customs with Inspector Drab, selling the glowmoss to Mama Gorrit, first sounds; the first mission end to end.
 5. **Upgrades and jobs**, then **trouble** (navy scans, raiders, fights), then **Veyra** (re-entry, landing at cities), then further out.
