@@ -1,6 +1,6 @@
 # Starwake
 
-A 3D space exploration game with real-scale, Newtonian flight. You fly a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
+A 3D space exploration game with real-scale, Newtonian flight. You fly the Mudlark, a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal, and dock at Tumbledown, a huge station for outcasts and misfits. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
 
 ## Commands
 
@@ -13,7 +13,7 @@ npm run build      # production build into dist/
 npm run preview    # serve dist/ locally
 ```
 
-Add `?debug` to the URL to get `window.starwake = {S, O, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo}` in the console (state, orbit readouts, actions, world objects, camera, height above and velocity of Tal's ground, Tal's position, readout refresh after editing `S`; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
+Add `?debug` to the URL to get `window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo}` in the console (state, orbit readouts, Tumbledown's and the Halberd's position and velocity, actions, world objects, camera, height above and velocity of Tal's ground, Tal's position, readout refresh after editing `S`; `W.terrain.stats()` shows chunk counts), plus a line under the readouts with frame rate, triangles, draw calls and chunk counts. Useful for headless checks with Playwright and for checking performance on a phone.
 
 Before finishing any change: `npm test` passes, `npm run build` succeeds, and the change has been looked at in a browser (a phone-sized viewport too if it touches the HUD or controls).
 
@@ -21,21 +21,23 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 
 | File | Responsibility |
 |---|---|
-| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, terrain, landing limits, and ships as data: `TRANSPORT` (thrust, turn rates, gear, contact points, camera framing; `SHIP` is the one the player flies) and `HALBERD` (its model). Plain numbers, no three.js (the terrain worker imports it). |
-| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, hover mode (`setHover`), warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue, landing (contact points, touchdown rules, landed state, take-off, crash checkpoint). Reads the ship from `SHIP`. |
+| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, terrain, landing limits, ships as data: `TRANSPORT` (the Mudlark: thrust, turn rates, gear, contact points, camera framing; `SHIP` is the one the player flies) and `HALBERD` (its model), `STATION` (Tumbledown: orbit, size, bay, docking range, pad) and `PATROL` (the Halberd's orbit). Plain numbers, no three.js (the terrain worker imports it). |
+| `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, hover mode (`setHover`), warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue, landing (contact points, touchdown rules, landed state, take-off, crash checkpoint). Tumbledown `ST` and the Halberd `HB` (stepped under the same gravity, `lvlhQuat` for their attitude, `ringAngle` for the wheel), collision with the station, docking (`requestDock`, `startUndock`, the run as paths in the station's frame), `snapshot`/`restore` (checkpoint and save). Reads the ship from `SHIP`. |
 | `src/engine.js` | Renderer, cameras, sky scene and sun, lights (the sun's shadow box is sized to the ship), environment map. |
 | `src/sky.js` | Stars (realistic brightness and colour spread), the Milky Way glow (baked once), and the exposure that dims them when something bright fills the view. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
 | `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight` = the bake's `talBase` plus `talDetail`, small craters and roughness that exist only in JS). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
-| `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. |
+| `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. Places Tumbledown and the Halberd, and dims the sun inside the bay. |
+| `src/station.js` | Tumbledown's model, built from primitives in metres: hub, bay 3 (hangar, pad, crates, sliding doors), the turning wheel with shacks and windows, wings, dish, sign, beacons and guide lights. `update(t, bay, rt)` turns the wheel, moves the doors and blinks the lights. |
 | `src/terrain.js`, `src/terrain-build.js`, `src/terrain-worker.js` | Tal's ground: cube-sphere quadtree of chunks that refine as the camera gets closer. Chunks are built from `talHeight` in Web Workers; `terrain-build.js` is pure so tests can check it. |
 | `src/ship/transport.js` | The player's ship, built from primitives in metres: saucer hull, cargo prongs, cockpit pod, engine band, lift thrusters, landing gear (`setLegs`), two small turrets. |
-| `src/ship/destroyer.js` | The Halberd, the navy's destroyer (not in the game until phase 2), in ship units (×`HALBERD.scale` = metres). Also exports the hull panel textures and box helpers both models use. |
+| `src/ship/destroyer.js` | The Halberd, the navy's destroyer (on patrol, just flying for now), in ship units (×`HALBERD.scale` = metres). Also exports the hull panel textures and box helpers both models use. |
 | `src/ship/bridge.js` | Cockpit interior (its own scene and camera) and its live screens and dials. |
 | `src/camera.js` | Chase, cockpit and map views; chase blends into a landing view while the gear is down. |
 | `src/input.js` | Keyboard, mouse, touch gestures, on-screen buttons. Produces the input for `stepFlight`. |
-| `src/hud.js` | HTML overlay: readouts, markers, flight-computer buttons, toasts, braking cue, touchdown light, intro and crash cards. Reads state each frame. |
-| `src/main.js` | Wiring and the frame loop. |
+| `src/hud.js` | HTML overlay: readouts, markers, flight-computer buttons, toasts, braking cue, touchdown and docking light, docking offer, intro, docked and crash cards. Reads state each frame. |
+| `src/save.js` | One save in `localStorage` (`starwake.save`), the physics snapshot. Every call may quietly do nothing (private windows). |
+| `src/main.js` | Wiring and the frame loop: when to offer docking and when to save. |
 
 Key ideas:
 
@@ -51,7 +53,7 @@ Key ideas:
 
 ## Physics and feel (agreed with Craig, protected by tests)
 
-- Newtonian: thrust changes velocity, nothing slows the ship but engines or atmosphere. Gravity from Veyra and Tal. Start: circular 400 km orbit, about 7.35 km/s, 91 min period.
+- Newtonian: thrust changes velocity, nothing slows the ship but engines or atmosphere. Gravity from Veyra and Tal. Start: circular 400 km orbit, about 7.35 km/s, 91 min period, 25 km behind Tumbledown (403 km, drifting closer at about 5 m/s).
 - Tal is close and heavy, so its tides stretch a low orbit by roughly ±15 km per lap. That is physical, not an integrator bug (warp levels agree to within metres).
 - The transport starts weak, to be upgraded later: main engine 4 m/s² (0.4 g; Boost doubles it), lift thrusters 4 m/s², retro thrusters 1 m/s². Enough to land on Tal (1.5 m/s²), not on Veyra (9.6). Values in `TRANSPORT`.
 - Rotation is rate-command with attitude hold: max about 10°/s pitch, 8°/s yaw, 14°/s roll; thrusters stop a turn in under half a second (~1.2° overshoot). A 180° flip takes about 22 s. Values in `TRANSPORT.rate`/`acc`.
@@ -65,7 +67,10 @@ Key ideas:
 - Hard deck at 15 km on Veyra until landing there exists.
 - Landing on Tal is belly-down on four gear legs, which come down below 1.5 km (`gearAlt`) and go up above 1.7 km. Touchdown limits: under 3 m/s down, 1.5 m/s sideways, tilted under 8°, on ground sloping under 12°; 3 to 6 m/s down is a hard landing (a warning). Anything else, or any hull point touching the ground, is a crash: a card says why, with Try again (checkpoint saved passing 15 km on the way down, and at each landing) and Back to orbit. No damage model.
 - Landed, the pose is fixed in Tal's body frame, so the ship turns with the ground at any warp. Lift above hover takes off.
-- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, hover (levels and stops drift, steering moves it, switching on nose-up keeps height) and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint. If a change fails one of these, it changed how the ship flies: confirm it is intended.
+- Tumbledown: a wheel 2.6 km across turning once every 72 s, the bay at the back of its hub facing back along the orbit. Within 10 km (`dockRange`) and slower than 50 m/s relative (`dockSpeed`), "Request docking" and "Not now" appear and time warp drops to 1× (Not now hides it until you leave that range; after undocking it waits until you are 3 km out). Station control then flies the ship (brakes, goes round the station if needed, lines up 1 km behind it, flies into bay 3 at about 12 m/s, sets down on the pad); no input counts until it lets go. Docked, the pose is fixed in the station's frame at any warp. Undocking backs out, turns around once clear and lets go at 3 m/s. Warp up to 100× during the run. Hitting the station (hub, wheel and spokes, wings, dish) is a crash.
+- The Halberd flies a 420 km patrol orbit, starting 70 km ahead; the Mudlark passes 10 to 25 km under it. Both NPCs move under the same gravity as the ship.
+- Saving: on docking, every minute of flight, on pause and when the page is hidden; the intro card offers Continue and New game. The crash checkpoint is also kept within 20 km of the station and on docking.
+- `tests/physics.test.js` checks orbit stability, warp accuracy, the deorbit burn, the hard deck, flip time and stopping, the braking cue, hover (levels and stops drift, steering moves it, switching on nose-up keeps height) and landing: a full approach from orbit lands, fast, tilted and steep touchdowns crash, take-off works, a landed ship stays put through 1000× warp, a crash restarts from the checkpoint; and docking: the offer and its limits, docking onto the pad (and staying through 1000× warp), going round from in front, undocking nose first, hitting the station, a save brought back exactly, the Halberd's pass. If a change fails one of these, it changed how the ship flies: confirm it is intended.
 
 ## Controls (touch is the primary target)
 
@@ -73,8 +78,9 @@ Key ideas:
 - Two thumbs: twist like a steering wheel to roll (clockwise rolls right; ~4° dead zone, full rate at ~26°), pinch to zoom.
 - Map view: one finger rotates the map, pinch zooms.
 - Right side: thrust slider and Boost (double thrust while held). In hover mode the slider is "Lift", with a green mark at hover. Left side: time warp, Prograde, Retrograde, Roll buttons, and Hover above them when low over Tal.
-- Tap Veyra, Tal or the green motion markers to have the flight computer face them.
-- Keyboard: W/S thrust, Z/X full/cut, A/D yaw, arrows pitch, Q/E roll, Shift boost, Space retro, F/R holds, G hover, `,`/`.` warp, C cycle camera, M map, Esc pause.
+- Tap Veyra, Tal, Tumbledown, the Halberd or the green motion markers to have the flight computer face them.
+- Tumbledown's marker shows its distance, and inside 100 km the speed relative to it. In range: Request docking or Not now at the top of the screen; Undock on the docked card.
+- Keyboard: W/S thrust, Z/X full/cut, A/D yaw, arrows pitch, Q/E roll, Shift boost, Space retro, F/R holds, G hover, `,`/`.` warp, C cycle camera, M map, Enter request docking or undock, Esc pause.
 
 ## Style
 
@@ -86,7 +92,8 @@ Key ideas:
 
 - Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground has real detail down to craters about 70 m across and roughness at 40 m.
 - Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
-- No fuel, no objectives yet. Landing only on Tal.
+- No fuel, cargo or money yet; docking ends at the docked card until the hangar (phase 3). Landing only on Tal.
+- The Halberd only flies; it does not scan or react yet.
 - The cockpit view reuses the old destroyer bridge interior, which is roomier than the transport's pod.
 
 ## Roadmap
@@ -95,6 +102,6 @@ You fly a **small smuggler's transport** with contraband in the hold and small g
 
 1. **Landing on Tal**: works. Built in `docs/tal-landing-plan.md` (for the Halberd), then moved to the transport.
 2. **The new ship**: done (phase 1): the model, weak handling as data, hover mode, belly-down landing on Tal.
-3. **The station and docking**: a huge station in Veyra orbit, "Request docking?", automatic docking into its bay, the Halberd on patrol, saving.
+3. **The station and docking**: works (phase 2): Tumbledown, "Request docking", automatic docking into bay 3 and undocking, the Halberd on patrol, saving.
 4. **The hangar**: aliens, customs, selling the contraband; the first mission end to end.
 5. **Upgrades and jobs**, then **trouble** (navy scans, raiders, fights), then **Veyra** (re-entry, landing at cities), then further out.

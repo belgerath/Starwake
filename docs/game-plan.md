@@ -4,7 +4,7 @@ Where the game goes next: the world, what you do in it, and the order to build i
 
 ## The game in a paragraph
 
-You fly a small, tired transport ship, about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a hangar full of aliens, sell the cargo, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
+You fly the Mudlark, a small, tired transport ship about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: Tumbledown, a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a hangar full of aliens, sell the cargo, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
 
 ## Pillars
 
@@ -33,9 +33,9 @@ Changes:
 |---|---|
 | Veyra | 6,000 km radius, gravity 9.6 m/s², a ring from 4,200 to 8,100 km up. The colony: cities, a government, a navy |
 | Tal | 1,640 km radius, gravity 1.5 m/s², 42,000 km away. Mining outposts, quiet places to land |
-| The station (name to decide) | Huge, kilometres across, in orbit around Veyra. Outside the colony's law: outcasts, misfits, aliens, traders |
+| Tumbledown | A huge station, a wheel 2.6 km across, in orbit around Veyra. Outside the colony's law: outcasts, misfits, aliens, traders |
 | The Halberd | The navy's 400 m destroyer, on patrol. Scans ships; contraband in your hold is a problem |
-| Your ship (name to decide) | About 35 m, a hold with hidden compartments, two small guns |
+| The Mudlark (your ship) | About 35 m, a hold with hidden compartments, two small guns |
 
 ### Places
 
@@ -50,7 +50,7 @@ Changes:
 
 ## The first mission
 
-1. **Start** in a 400 km orbit around Veyra, about 30 km behind the station, with a hold full of contraband.
+1. **Start** in a 400 km orbit around Veyra, 25 km behind Tumbledown, with a hold full of contraband.
 2. **Approach.** The station is marked, with distance and closing speed. Fly toward it; the readouts say when you are slow enough.
 3. **Request docking.** Within about 10 km and under about 50 m/s relative to the station, a prompt asks "Request docking?". Tap yes.
 4. **Automatic docking.** Station control takes over: it matches speed, lines you up, the bay doors open, and the ship glides in (about a minute, and time warp can skip it). The doors close behind you. While docked the ship is fixed in the station's frame, the way a landed ship is fixed to Tal.
@@ -107,7 +107,7 @@ What was built:
 - Cameras: chase and landing views framed for a 35 m ship, the cockpit view in the pod (still the destroyer's roomy bridge interior), the sun's shadow box sized to the ship.
 - Tests: hover (levels and stops drift, steering moves it, switching on nose-up keeps height), a full approach from orbit that lands, the braking cue across shallow and steep deorbits, and the existing landing, crash, take-off and warp tests for the new ship.
 
-### Phase 2: The station and docking
+### Phase 2: The station and docking (done)
 
 - The huge station in orbit around Veyra, built from shapes, with a bay whose doors open.
 - Start near it; a target marker with distance and closing speed.
@@ -116,6 +116,16 @@ What was built:
 - Saving: the browser keeps your game.
 
 Done when: start, approach, dock and undock again.
+
+What was built:
+- `STATION` and `PATROL` in `config.js`: the station's size, orbit, bay, docking range and pad as data. The ship is the Mudlark, the station Tumbledown.
+- Tumbledown (`src/station.js`): a hub 900 m long with the bay at its back end, a wheel 2.6 km across turning once every 72 s (about 1 g at the rim), mismatched shacks and 2,600 lit windows on the wheel, solar wings with patched panels, a dish, blinking red beacons, a neon sign ("Berths · trade · no questions asked") and bay 3: a lit hangar 160 by 90 m and 260 m deep with crates, a pad and two doors that slide open. Guide lights run in toward the bay.
+- Orbits: Tumbledown at 403 km, 25 km ahead of the start and drifting closer; the Halberd on a 420 km patrol orbit 70 km ahead, which the Mudlark overtakes, passing 10 to 25 km from it. Both move under the same gravity as the ship (Tal's tides too), so a ship that matches them stays matched. The station keeps its dish forward along the orbit and the bay facing back, toward the start.
+- Docking: within 10 km and slower than 50 m/s relative, "Request docking" and "Not now" appear (time warp drops to 1× so the offer is not missed; Enter on a keyboard). Not now hides it until you leave that range; after undocking it waits until you are 3 km out. Station control flies the run: brakes, goes round the station if you are in front of it, lines up 1 km behind it, opens the doors, flies in at about 12 m/s and sets down on the pad with the gear down. The doors close and a card says you are docked. Docked, the ship is fixed in the station's frame at any time warp. Undock opens the doors, backs out, turns around once clear and lets go at 3 m/s, nose first. Time warp up to 100× during the run.
+- Collision with the station's hub, wheel (turning spokes too), wings and dish, as shapes: hitting it is a crash, with the speed on the card.
+- Markers for Tumbledown (within 3,000 km, with the speed relative to it inside 100 km) and the Halberd (within 300 km) with distance; tap one to face it.
+- Saving: one save in the browser, written on docking, every minute of flight, on pause and when the page is hidden. The intro card offers Continue and New game. The crash checkpoint is also kept within 20 km of the station and on docking.
+- Tests: drifting until the offer comes, the offer's limits, docking onto the pad and staying put through 1000× warp, docking from in front goes round, undocking (nose first, clear of the station, doors shut), hitting the station, a save brought back exactly, the Halberd's pass.
 
 ### Phase 3: The hangar
 
@@ -150,10 +160,10 @@ The rest of the system, then other stars.
 |---|---|---|
 | Ships as data | 1 and 2 | Model, size, thrust, turn rates and contact points per ship, so upgrades and other ships (the Halberd) use the same flight model. Today `stepFlight` flies one global ship `S`; split it. |
 | Docked state | 2 | Like the landed state on Tal: the pose is kept in the station's frame and follows its orbit at any time warp. The docking run is a short path in that frame. |
-| Station orbit | 2 | The station and the Halberd ride exact orbits (on rails) unless something needs full physics. |
+| Station orbit | 2 | The station and the Halberd move under the same gravity as the ship, stepped with it, so a matched ship stays matched. |
 | Scenes | 3 | The hangar is its own three.js scene, like the bridge interior. Space keeps its state while you are inside. |
 | Asset loading | 3 | glTF loader, small compressed models, loaded on first dock, a credits file for licences. |
-| Saving | 2 | Ship, cargo, money and progress, versioned, in the browser's storage. |
+| Saving | 2 | Versioned, in the browser's storage. Phase 2 saves the flight (ship, station, Halberd, docked or not); cargo, money and progress join it in phase 3. |
 | Sound | 3 | Web Audio; phone browsers only allow sound after a tap. |
 | Performance | always | 60 fps on the phone; the `?debug` line is the tool. A hangar full of animated aliens needs a budget too. |
 
@@ -170,13 +180,13 @@ Confirmed by Craig:
 7. **Landing on Tal:** belly-down on downward thrusters.
 8. **The Halberd:** stays as a navy destroyer that patrols.
 9. **Fuel:** generous (from the earlier plan).
+10. **Names:** the ship is the Mudlark, the station Tumbledown.
+11. **Docking offer:** within 10 km and under 50 m/s relative.
 
 Still to confirm (recommendations):
 
-10. **Names** for your ship and the station.
-11. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
-12. **Docking offer** within about 10 km and under about 50 m/s relative.
+12. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
 13. **Ship and station models** built from shapes in code (like the Halberd), with asset packs used for the aliens and small props.
 14. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
-Next: phase 1, the new ship.
+Next: phase 3, the hangar.

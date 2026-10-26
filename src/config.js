@@ -45,11 +45,11 @@ export const WARPS = [1, 10, 100, 1000];
 
 // Ships. Positions are metres in the ship's frame: the nose points along −z, the deck along +y.
 const ring = (r, y, n) => Array.from({length: n}, (_, i) => [r * Math.sin(i * TAU / n), y, r * Math.cos(i * TAU / n)]);
-// The player's ship: a small, battered transport, about 35 m (name to decide). A saucer hull with two cargo
+// The player's ship: the Mudlark, a small, battered transport about 35 m long. A saucer hull with two cargo
 // prongs at the front, a cockpit pod on the right, a wide engine at the back, lift thrusters and landing gear
 // under the belly. Weak to start with; upgrades come later (docs/game-plan.md, phase 4).
 export const TRANSPORT = {
-  name: 'Transport', length: 35, mass: 4e5, cda: 150, // drag coefficient × frontal area (m²)
+  name: 'Mudlark', length: 35, mass: 4e5, cda: 150, // drag coefficient × frontal area (m²)
   aMain: 4, aBoost: 8, aRetro: 1,  // m/s²: main engine at full throttle (along the nose), Boost, retro thrusters (Space)
   aLift: 4,                        // m/s²: belly lift thrusters at full throttle, in hover mode
   // Rotation [pitch, yaw, roll]: rate is the top turn rate (rad/s), acc how fast thrusters start and stop a turn (rad/s²).
@@ -65,12 +65,27 @@ export const TRANSPORT = {
   chase: [0, 11, 50], ahead: 110, boostPull: 4, landView: 65, camClear: 10, eye: [10.6, 0.75, -11.6],
 };
 export const SHIP = TRANSPORT;     // the ship the player flies
-// The Halberd (DD-07), the navy's 400 m destroyer (on patrol from phase 2). Its model is built in ship units
+// The Halberd (DD-07), the navy's 400 m destroyer, on patrol PATROL.alt up, starting PATROL.lead ahead of
+// you: it drifts back and passes overhead after about half an hour. Its model is built in ship units
 // (×scale = metres), with landing legs at the stern that fold forward along the hull.
+export const PATROL = {alt: 420e3, lead: 70e3};
 export const HALBERD = {
-  scale: 28,
+  name: 'Halberd', scale: 28,
   legHinges: [[1.6, -1.0, 4.9], [-1.6, -1.0, 4.9], [1.8, 0.55, 4.9], [-1.8, 0.55, 4.9]],
   legFeet: [[2.5, -2.6, 8.35], [-2.5, -2.6, 8.35], [2.5, 2.4, 8.35], [-2.5, 2.4, 8.35]],
+};
+
+// Tumbledown: a huge, ramshackle station where outcasts and misfits trade. It orbits STATION.alt up, starting
+// STATION.lead ahead of you on the start orbit; being a little higher, it drifts back toward you at about 5 m/s.
+// Station frame (metres): −z along its orbit, +y away from Veyra (it keeps that attitude as it goes round). A hub
+// along z with the docking bay in its +z end (facing back along the orbit), a ring around its middle spinning
+// for about 1 g, solar wings and a dish at the front. Within dockRange and under dockSpeed relative to it you
+// can ask to dock: station control flies you to the approach point behind the bay, then in to the pad.
+export const STATION = {
+  name: 'Tumbledown', alt: 403e3, lead: 25e3, dockRange: 10e3, dockSpeed: 50,
+  hubR: 110, hubLen: 900, ringR: 1300, ringTube: 70, spin: 0.087, spokeR: 22,
+  bay: {w: 160, h: 90, depth: 260}, wings: {z: -380, x0: 200, x1: 1100, h: 160}, dish: {z: -540, r: 120},
+  pad: [0, -39, 300], approach: [0, -20, 1000], // ship centres: on the pad (gear on the bay floor), and the holding point behind the bay
 };
 
 // Landing on Tal, belly-down on the landing gear.

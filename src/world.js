@@ -1,17 +1,20 @@
 // Everything in the universe that gets drawn: Veyra (surface, clouds, atmosphere), the ring and
-// its local rocks, Tal (terrain.js), the orbit lines for map view, and the player's ship (ship/transport.js).
+// its local rocks, Tal (terrain.js), the orbit lines for map view, the player's ship (ship/transport.js),
+// Tumbledown station (station.js) and the Halberd (ship/destroyer.js).
 //
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
 import * as THREE from 'three';
-import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
+import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, STATION, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
 import {scene, sunDir, sunLight, hemi, makeEnv, renderer, cam} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
-import {S, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
+import {S, O, ST, HB, lvlhQuat, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
 import {createTerrain} from './terrain.js';
 import {buildTransport} from './ship/transport.js';
+import {buildDestroyer} from './ship/destroyer.js';
+import {buildStation} from './station.js';
 import {buildBridge} from './ship/bridge.js';
 
 const V3 = THREE.Vector3;
@@ -70,13 +73,26 @@ export function buildWorld() {
   W.rocks = new THREE.InstancedMesh(rockGeo(55, 2), new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.95, metalness: 0.05, flatShading: true}), ROCK_MAX);
   W.rocks.frustumCulled = false; W.rocks.count = 0; W.rocks.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(W.rocks);
   W.ship = buildTransport(); scene.add(W.ship.root);
+  // Tumbledown and the Halberd sit in W.world at their universe positions (three.js composes matrices in
+  // doubles, so near the ship they stay precise). The Halberd's engines are cold.
+  W.station = buildStation(); W.world.add(W.station.root);
+  W.halberd = buildDestroyer(); W.world.add(W.halberd.root); W.halberd.eLight.visible = false;
+  for (const m of [...W.halberd.flames, ...W.halberd.glows]) m.visible = false;
   W.heatSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: glowTex([[0, 'rgba(255,240,210,1)'], [0.25, 'rgba(255,150,60,0.7)'], [0.6, 'rgba(255,80,20,0.15)'], [1, 'rgba(255,60,0,0)']]), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, opacity: 0}));
   W.heatSpr.visible = false; scene.add(W.heatSpr);
   W.bridge = buildBridge(env);
   return W;
 }
 
-const peq = new V3(), tV = new V3(), vAir = new V3();
+const peq = new V3(), tV = new V3(), vAir = new V3(), qSt = new THREE.Quaternion();
+const skyOut = new THREE.Color(0x000000), groundOut = new THREE.Color(0x6d8db8), bayLamp = new THREE.Color(0xffe2bf), bayFloor = new THREE.Color(0x3a332c);
+// How far inside Tumbledown's bay the ship is (0 outside, 1 well in).
+function insideBay() {
+  if (O.stDist > 3000) return 0;
+  tV.subVectors(S.pos, ST.pos).applyQuaternion(lvlhQuat(ST, qSt).invert());
+  const {bay, hubLen} = STATION;
+  return Math.abs(tV.x) < bay.w / 2 && Math.abs(tV.y) < bay.h / 2 ? smooth(hubLen / 2 + 10, hubLen / 2 - 50, tV.z) : 0;
+}
 // Per-frame: place the universe around the ship, spin bodies, update lighting and effects.
 export function updateWorld(dt, rt) {
   W.world.position.copy(S.pos).negate();
@@ -84,6 +100,8 @@ export function updateWorld(dt, rt) {
   W.moonPivot.rotation.y = moonTh(S.t);
   const ship = W.ship;
   ship.root.quaternion.copy(S.quat); ship.setLegs(S.legs); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
+  W.station.root.position.copy(ST.pos); lvlhQuat(ST, W.station.root.quaternion); W.station.update(S.t, S.bay, rt);
+  W.halberd.root.position.copy(HB.pos); lvlhQuat(HB, W.halberd.root.quaternion); W.halberd.root.visible = O.hbDist < 300e3 && S.camMode !== 2;
   scene.updateMatrixWorld();
   for (const m of [W.planet, W.cloudMesh]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
   W.terrain.updateUniforms(W.moon, cam, renderer.domElement.height);
@@ -91,11 +109,14 @@ export function updateWorld(dt, rt) {
   // Fade the ring sheet when flying through it, where individual rocks take over.
   peq.copy(S.pos).applyQuaternion(qTiltInv); const rs = Math.hypot(peq.x, peq.z);
   W.ringMat.uniforms.fade.value = (S.camMode !== 2 && rs > RING_IN - 30e3 && rs < RING_OUT + 30e3) ? smooth(12e3, 50e3, Math.abs(peq.y)) : 1;
-  // Lighting: eclipse, planet-shine from below, reflections off when in shadow.
+  // Lighting: eclipse, planet-shine from below, reflections off when in shadow. Inside Tumbledown's bay the
+  // sun does not reach: it fades out and the bay's lamps (a warm light from overhead) take over.
   S.lit = sunlitFactor(sunDir);
-  sunLight.intensity = SUN_I * S.lit; radialOut(tV); hemi.position.copy(tV);
-  const sub = tV.copy(S.pos).normalize().dot(sunDir); hemi.intensity = 0.55 * clamp(sub * 1.5 + 0.35, 0, 1) * Math.pow(R / S.pos.length(), 2);
-  for (const m of ship.mats) m.envMapIntensity = 0.12 + 0.88 * S.lit;
+  const inside = insideBay();
+  sunLight.intensity = SUN_I * S.lit * (1 - 0.94 * inside); radialOut(tV); hemi.position.copy(tV);
+  const sub = tV.copy(S.pos).normalize().dot(sunDir); hemi.intensity = 0.55 * clamp(sub * 1.5 + 0.35, 0, 1) * Math.pow(R / S.pos.length(), 2) * (1 - inside) + 1.1 * inside;
+  hemi.color.copy(skyOut).lerp(bayLamp, inside); hemi.groundColor.copy(groundOut).lerp(bayFloor, inside);
+  for (const m of ship.mats) m.envMapIntensity = (0.12 + 0.88 * S.lit) * (1 - 0.8 * inside);
   // Engine and lift thruster flames, sized by what each is pushing (1 = full throttle, 2 = Boost).
   const engines = (f, flames, glows, len) => {
     for (const fl of flames) { fl.visible = f > 0.01; fl.scale.y = len * (0.15 + f * 0.9 + Math.random() * 0.06); fl.material.opacity = fl.userData.op * (0.6 + Math.min(f, 1) * 0.4); }

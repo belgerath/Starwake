@@ -29,13 +29,14 @@ function orbitBy(dx, dy) {
 }
 function zoomBy(f) { if (S.camMode === 2) S.mapZoom = clamp(S.mapZoom * f, 0.32, 9); else S.camZoom = clamp(S.camZoom * f, 0.55, 3); }
 
-// actions: {launch, retry, togglePause, setMode, cycleCam, toggleHold, toggleHover, warpStep, isReady}
+// actions: {launch, retry, togglePause, setMode, cycleCam, toggleHold, toggleHover, warpStep, dockKey, isReady}
 export function initInput(actions) {
   addEventListener('keydown', e => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     keys[e.code] = true; if (e.repeat) return;
     if (e.code === 'Enter' && actions.isReady() && S.paused) { if (S.crash) actions.retry(); else actions.launch(); return; }
     if (!S.launched) return;
+    if (e.code === 'Enter') actions.dockKey();
     if (e.code === 'KeyC') actions.cycleCam();
     if (e.code === 'KeyM') actions.setMode(S.camMode === 2 ? 0 : 2);
     if (e.code === 'Escape' || e.code === 'KeyH') actions.togglePause();

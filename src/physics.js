@@ -7,8 +7,11 @@
 // Low over Tal, hover mode (setHover()) moves the thrust to the belly lift thrusters and keeps the ship
 // level whenever it is not being steered. It lands belly-down on its gear (contact(), touchdown(),
 // stepLanded()). Any hull point touching the ground, or a touchdown outside the limits, is a crash.
+// Tumbledown station and the Halberd fly the same gravity alongside it (ST, HB); near the station you can ask
+// to dock, and station control flies you in (requestDock(), stepDock()). snapshot() and restore() capture
+// the whole flight, for the crash checkpoint and for saving.
 import * as THREE from 'three';
-import {R, GM, ATM_TOP, FLOOR, SCALE_H, MOON_R, GM_M, MOON_A, MOON_INC, SOI_M, MOON_N, SPIN, TILT, SHIP, WARPS, TAU, TAL_MAX_H, TAL_START_ALT, SURFACE_ALT, BRAKE_CLEAR, CUE_ALT,
+import {R, GM, ATM_TOP, FLOOR, SCALE_H, MOON_R, GM_M, MOON_A, MOON_INC, SOI_M, MOON_N, SPIN, TILT, SHIP, WARPS, TAU, TAL_MAX_H, TAL_START_ALT, SURFACE_ALT, BRAKE_CLEAR, CUE_ALT, STATION, PATROL,
   LEG_TIME, LAND_DOWN, LAND_HARD, LAND_SIDE, LAND_TILT, LAND_SLOPE, CHECKPOINT_ALT} from './config.js';
 import {clamp, smooth} from './util.js';
 import {talHeight} from './tal.js';
@@ -29,11 +32,12 @@ const DEG = 180 / Math.PI;
 // aMain and aLift: what the main engine and the lift thrusters are pushing right now (m/s²).
 // Landing: hover (thrust on the lift thrusters), legs (the gear: 0 stowed .. 1 down, animated), legsDown
 // (where the gear is heading), landed (standing on Tal, pose lp/lq in Tal's body frame, easing from
-// lpc/lqc), crash (what went wrong).
+// lpc/lqc), crash (what went wrong). dock: the docking run at Tumbledown (null when flying free), bay: its
+// doors (0 shut .. 1 open).
 export const S = {
   pos: new V3(), vel: new V3(), quat: new THREE.Quaternion(), w: new V3(), t: 0, moonTh0: 0,
   throttle: 0, warpIdx: 0, hold: 'pro', heat: 0, lit: 1, aMain: 0, aLift: 0, boostAmt: 0, inAtmo: false, inPitch: 0, inYaw: 0,
-  hover: false, legs: 0, legsDown: false, landed: false, crash: null, lp: new V3(), lpc: new V3(), lq: new THREE.Quaternion(), lqc: new THREE.Quaternion(),
+  hover: false, legs: 0, legsDown: false, landed: false, crash: null, dock: null, bay: 0, lp: new V3(), lpc: new V3(), lq: new THREE.Quaternion(), lqc: new THREE.Quaternion(),
   camMode: 0, camYaw: 0, camPitch: 0, camZoom: 1, mapYaw: 0, mapPitch: 0.4, mapZoom: 1, launched: false, paused: true,
 };
 // Derived orbital readouts, relative to the dominant body (Tal inside its sphere of influence, otherwise Veyra).
@@ -44,7 +48,9 @@ export const S = {
 // the current path. brake: seconds until a full-thrust retrograde burn must start to stop just above
 // the ground (0 = now, Infinity = no burn needed). With the gear down: tilt from standing straight and slope
 // of the ground under the feet (degrees), and ready, the touchdown light ('ok', or what is outside the limits).
-export const O = {dom: 0, name: 'Veyra', speed: 0, alt: 0, agl: 0, clear: 0, g: 0, vv: 0, hs: 0, surf: false, impact: Infinity, brake: Infinity, ap: 0, pe: 0, period: 0, altPlanet: 0, altMoon: 0, tilt: 0, slope: 0, ready: ''};
+// Tumbledown: stDist, stSpeed (relative), stClose (closing speed), dockable; hbDist: the Halberd's distance.
+export const O = {dom: 0, name: 'Veyra', speed: 0, alt: 0, agl: 0, clear: 0, g: 0, vv: 0, hs: 0, surf: false, impact: Infinity, brake: Infinity, ap: 0, pe: 0, period: 0, altPlanet: 0, altMoon: 0, tilt: 0, slope: 0, ready: '',
+  stDist: Infinity, stSpeed: 0, stClose: 0, dockable: false, hbDist: Infinity};
 
 // Contact points in the ship frame, metres.
 const FEET = SHIP.feet.map(p => new V3(...p)), HULL = SHIP.hull.map(p => new V3(...p)), ALL = FEET.concat(HULL);
@@ -104,6 +110,7 @@ export function orbInfo() {
       O.ready = S.legs < 1 ? 'legs' : !S.hover ? 'hover' : O.slope >= LAND_SLOPE ? 'steep' : O.tilt >= LAND_TILT ? 'tilt' : O.hs >= LAND_SIDE ? 'drift' : -O.vv >= LAND_DOWN ? 'fast' : 'ok';
     }
   }
+  stationInfo();
   brakeCue();
 }
 const uO = new V3(), cO = new V3(), gO = new V3();
@@ -170,18 +177,31 @@ function brakeCue() {
 }
 export function radialOut(out) { if (O.dom === 1) { moonPos(S.t, mP); return out.subVectors(S.pos, mP).normalize(); } return out.copy(S.pos).normalize(); }
 
-// Start: circular orbit 400 km up, inclined to the ring, sun behind, Tal ahead and lit.
-export function initOrbit(sunDir) {
+// The start orbit: 400 km up, inclined to the ring, the sun behind. rh is where the ship starts (unit), vh its
+// direction of motion, hN the orbit's normal.
+function startFrame(sunDir) {
   const hN = eqN.clone().applyAxisAngle(new V3(1, 0, 0), 0.33).normalize();
   const want = sunDir.clone().applyAxisAngle(hN, 0.5);
   const rh = want.sub(hN.clone().multiplyScalar(want.dot(hN))).normalize();
-  const r0 = R + 400e3; S.pos.copy(rh).multiplyScalar(r0);
-  const vh = new V3().crossVectors(hN, rh).normalize(); S.vel.copy(vh).multiplyScalar(Math.sqrt(GM / r0));
+  return {rh, vh: new V3().crossVectors(hN, rh).normalize(), hN};
+}
+// Body b on a circular orbit alt up, ahead metres further along the start orbit.
+function placeOnOrbit(b, f, alt, ahead) {
+  const r = R + alt, a = ahead / (R + 400e3), c = Math.cos(a), s = Math.sin(a);
+  b.pos.copy(f.rh).multiplyScalar(c).addScaledVector(f.vh, s).multiplyScalar(r);
+  b.vel.copy(f.vh).multiplyScalar(c).addScaledVector(f.rh, -s).multiplyScalar(Math.sqrt(GM / r));
+}
+function placeNpcs(sunDir) { const f = startFrame(sunDir); placeOnOrbit(ST, f, STATION.alt, STATION.lead); placeOnOrbit(HB, f, PATROL.alt, PATROL.lead); }
+
+// Start: circular orbit 400 km up, Tal ahead and lit, Tumbledown 25 km ahead and the Halberd further on.
+export function initOrbit(sunDir) {
+  const {rh, vh} = startFrame(sunDir);
+  const r0 = R + 400e3; S.pos.copy(rh).multiplyScalar(r0); S.vel.copy(vh).multiplyScalar(Math.sqrt(GM / r0));
   m4.lookAt(zero, vh, rh); S.quat.setFromRotationMatrix(m4);
   const look = vh.clone().multiplyScalar(0.8).addScaledVector(rh, 0.6).normalize(); let best = -9, bt = 0;
   for (let i = 0; i < 120; i++) { S.moonTh0 = i / 120 * TAU; moonPos(0, mP); const u = mP.sub(S.pos).normalize(); const sc = u.dot(look) - 0.5 * u.dot(sunDir); if (sc > best) { best = sc; bt = S.moonTh0; } }
   S.moonTh0 = bt; S.t = 0; S.hold = 'pro'; S.throttle = 0; S.w.set(0, 0, 0); S.warpIdx = 0;
-  resetLanding(); orbInfo();
+  placeNpcs(sunDir); resetFlight(); orbInfo();
 }
 
 // "Start above Tal": circular orbit TAL_START_ALT up, flying toward the sunlit side with the sun
@@ -196,15 +216,17 @@ export function initTalOrbit(sunDir) {
   const r0 = MOON_R + TAL_START_ALT; S.pos.copy(mP).addScaledVector(rh, r0); S.vel.copy(mV).addScaledVector(vh, Math.sqrt(GM_M / r0));
   m4.lookAt(zero, vh, rh); S.quat.setFromRotationMatrix(m4);
   S.hold = 'pro'; S.throttle = 0; S.w.set(0, 0, 0); S.warpIdx = 0;
-  resetLanding(); orbInfo();
+  placeNpcs(sunDir); resetFlight(); orbInfo();
 }
-function resetLanding() { S.hover = false; S.legs = 0; S.legsDown = false; S.landed = false; S.crash = null; ck = null; lastAgl = Infinity; cueT = -1; }
+function resetFlight() { S.hover = false; S.legs = 0; S.legsDown = false; S.landed = false; S.crash = null; S.dock = null; S.bay = 0; ck = null; lastAgl = Infinity; lastSt = Infinity; cueT = -1; }
 
 // ---- attitude control ----
 const UP_BIAS = 3; // m/s: how hard retrograde leans toward upright when slow over Tal's ground
 function holdDir(out) {
   if (S.hold === 'planet') { out.copy(S.pos).negate().normalize(); return true; }
   if (S.hold === 'moon') { moonPos(S.t, out).sub(S.pos).normalize(); return true; }
+  if (S.hold === 'station') { out.subVectors(ST.pos, S.pos).normalize(); return true; }
+  if (S.hold === 'halberd') { out.subVectors(HB.pos, S.pos).normalize(); return true; }
   relVel(out);
   if (S.hold === 'retro') {
     out.negate();
@@ -280,6 +302,7 @@ function collide() {
   const r = S.pos.length();
   if (r < R + FLOOR) { tV.copy(S.pos).divideScalar(r); S.pos.copy(tV).multiplyScalar(R + FLOOR); const vr = S.vel.dot(tV); if (vr < 0) S.vel.addScaledVector(tV, -vr); notify('floor', 'Hard deck at 15 km. Landing arrives in a later phase.'); }
   contact();
+  if (!S.dock && O.dom === 0 && S.pos.distanceToSquared(ST.pos) < 9e6) { stationFrame(); if (hitsStation(toStation(S.pos, sp))) crash(`You hit ${STATION.name} at ${upTo(S.vel.distanceTo(ST.vel))} m/s.`); }
 }
 
 // ---- landing ----
@@ -337,28 +360,37 @@ function land(n) {
 }
 // Standing on Tal: the pose is fixed in Tal's body frame, so the ship turns with the ground at any time warp.
 function stepLanded(dt, T) {
-  S.t += T; const k = 1 - Math.exp(-dt * 3);
+  advanceNpcs(T); S.t += T; const k = 1 - Math.exp(-dt * 3);
   S.lpc.lerp(S.lp, k); S.lqc.slerp(S.lq, k);
   talQuat(S.t, qL); S.pos.copy(S.lpc).applyQuaternion(qL).add(moonPos(S.t, mP)); S.quat.copy(qL).multiply(S.lqc);
   talGroundVel(S.pos, S.t, S.vel); S.w.set(0, 0, 0);
 }
 
-// Checkpoint for "Try again": saved passing CHECKPOINT_ALT on the way down to Tal, and on every landing.
-let ck = null, lastAgl = Infinity;
-const CK_VALS = ['t', 'moonTh0', 'throttle', 'hold', 'hover', 'legs', 'legsDown', 'landed'], CK_OBJS = ['pos', 'vel', 'quat', 'w', 'lp', 'lpc', 'lq', 'lqc'];
-function saveCheckpoint() { ck = {}; for (const k of CK_VALS) ck[k] = S[k]; for (const k of CK_OBJS) ck[k] = S[k].clone(); }
-export function hasCheckpoint() { return ck !== null; }
-export function restoreCheckpoint() {
-  if (!ck) return false;
-  for (const k of CK_VALS) S[k] = ck[k]; for (const k of CK_OBJS) S[k].copy(ck[k]);
-  S.crash = null; S.warpIdx = 0; cueT = -1; orbInfo(); lastAgl = O.agl;
-  return true;
+// The whole flight as plain data (for the checkpoint, and for saving in the browser), and back.
+const SN_VALS = ['t', 'moonTh0', 'throttle', 'hold', 'hover', 'legs', 'legsDown', 'landed', 'bay'], SN_VECS = ['pos', 'vel', 'quat', 'w', 'lp', 'lpc', 'lq', 'lqc'];
+export function snapshot() {
+  const s = {v: 1, dock: S.dock && JSON.parse(JSON.stringify(S.dock)), st: [ST.pos.toArray(), ST.vel.toArray()], hb: [HB.pos.toArray(), HB.vel.toArray()]};
+  for (const k of SN_VALS) s[k] = S[k]; for (const k of SN_VECS) s[k] = S[k].toArray();
+  return s;
 }
+export function restore(s) {
+  for (const k of SN_VALS) S[k] = s[k]; for (const k of SN_VECS) S[k].fromArray(s[k]);
+  S.dock = s.dock && JSON.parse(JSON.stringify(s.dock));
+  ST.pos.fromArray(s.st[0]); ST.vel.fromArray(s.st[1]); HB.pos.fromArray(s.hb[0]); HB.vel.fromArray(s.hb[1]);
+  S.crash = null; S.warpIdx = 0; S.w.set(0, 0, 0); cueT = -1; orbInfo(); lastAgl = O.agl; lastSt = O.stDist;
+}
+// Checkpoint for "Try again": saved passing CHECKPOINT_ALT on the way down to Tal, coming within 20 km of
+// Tumbledown, on every landing and on docking.
+let ck = null, lastAgl = Infinity, lastSt = Infinity;
+function saveCheckpoint() { ck = snapshot(); }
+export function hasCheckpoint() { return ck !== null; }
+export function restoreCheckpoint() { if (!ck) return false; restore(ck); return true; }
 
 // Highest warp allowed: 100× inside the atmosphere, 10× within 5 km of Tal's ground (so touchdowns are
 // checked finely), lower again when a surface is coming up fast. Any warp once landed.
 export function maxWarpIdx() {
   if (S.landed) return 3;
+  if (S.dock) return S.dock.phase === 'docked' ? 3 : 2;
   let m = 3; if (O.dom === 0 && O.alt < ATM_TOP) m = 2; if (O.dom === 1 && O.agl < 5000) m = 1;
   const fl = O.dom === 0 ? FLOOR : STAND_H;
   if (O.vv < 0) { const tImp = (O.agl - fl) / (-O.vv); while (m > 0 && tImp < WARPS[m] * 8) m--; }
@@ -368,6 +400,7 @@ export function maxWarpIdx() {
 // One frame of flight. inp = {pitch, yaw, roll} in [-1,1] plus {boost, retro} booleans.
 export function stepFlight(dt, inp) {
   if (S.crash) return;
+  if (S.dock) { S.inPitch = S.inYaw = 0; S.boostAmt = 0; S.warpIdx = Math.min(S.warpIdx, maxWarpIdx()); stepDock(dt, dt * WARPS[S.warpIdx]); finish(); return; }
   const p = clamp(inp.pitch), y = clamp(inp.yaw), r = clamp(inp.roll);
   S.inPitch = p; S.inYaw = y;
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) > 0.12) { S.hold = null; S.warpIdx = 0; }
@@ -379,6 +412,7 @@ export function stepFlight(dt, inp) {
   if (S.hover && !O.surf) { setHover(false); notify('hoverOff', 'Hover off: too high above the ground.'); }
   S.warpIdx = Math.min(S.warpIdx, maxWarpIdx());
   let warp = WARPS[S.warpIdx];
+  S.bay = Math.max(0, S.bay - dt * warp / DOOR_TIME); // Tumbledown's doors close behind you
   if (S.landed) {
     // Take off once the engines push up harder than Tal pulls down.
     thrustAccel(inp, thrust); moonPos(S.t, mP); uC.subVectors(S.pos, mP); const d = uC.length();
@@ -395,6 +429,7 @@ export function stepFlight(dt, inp) {
     const rr = S.pos.length(); moonPos(S.t, mP); const dm = S.pos.distanceTo(mP);
     let h = Math.min(T, 5, 0.002 * TAU * Math.sqrt(rr * rr * rr / GM), 0.01 * TAU * Math.sqrt(dm * dm * dm / GM_M));
     if (nearTal) h = Math.min(h, 0.05);
+    npcStep(h, S.t);
     aExt.copy(thrust);
     const alt = rr - R;
     if (alt < ATM_TOP) {
@@ -416,7 +451,131 @@ function finish() {
   orbInfo();
   const inA = O.dom === 0 && O.alt < ATM_TOP; if (inA && !S.inAtmo) notify('atmo', 'Entering the atmosphere. Drag is slowing you.'); S.inAtmo = inA;
   if (O.dom === 1 && !S.landed && O.vv < 0 && lastAgl >= CHECKPOINT_ALT && O.agl < CHECKPOINT_ALT) saveCheckpoint();
-  lastAgl = O.agl;
+  if (!S.dock && lastSt >= 20e3 && O.stDist < 20e3) saveCheckpoint();
+  lastAgl = O.agl; lastSt = O.stDist;
+}
+
+// ---- Tumbledown and the Halberd ----
+// Both feel the same gravity as the ship and are stepped with it, so relative motion near them is exact.
+// Neither has engines yet. Each keeps its attitude to its orbit: −z along the motion, +y away from Veyra.
+export const ST = {pos: new V3(), vel: new V3()}, HB = {pos: new V3(), vel: new V3()};
+const NPCS = [ST, HB], pn = new V3(), lv1 = new V3(), lv2 = new V3();
+export function lvlhQuat(b, out) { m4.lookAt(zero, lv1.copy(b.vel).normalize(), lv2.copy(b.pos).normalize()); return out.setFromRotationMatrix(m4); }
+function npcStep(h, t0) {
+  for (const b of NPCS) { accelAt(b.pos, t0, pn); b.vel.addScaledVector(pn, h / 2); b.pos.addScaledVector(b.vel, h); accelAt(b.pos, t0 + h, pn); b.vel.addScaledVector(pn, h / 2); }
+}
+function advanceNpcs(T) { let t = S.t; while (T > 1e-9) { const h = Math.min(T, 5); npcStep(h, t); t += h; T -= h; } }
+export const ringAngle = t => STATION.spin * t; // Tumbledown's ring turns about the station's z axis
+
+// Station frame: qSt turns station-frame vectors into the universe frame; wSt is how fast the frame turns.
+const qSt = new THREE.Quaternion(), qStI = new THREE.Quaternion(), qLoc = new THREE.Quaternion(), qI = new THREE.Quaternion(), wSt = new V3(), sp = new V3(), sv = new V3(), sw = new V3();
+function stationFrame() { lvlhQuat(ST, qSt); qStI.copy(qSt).invert(); wSt.crossVectors(ST.pos, ST.vel).divideScalar(ST.pos.lengthSq()); }
+const toStation = (p, out) => out.subVectors(p, ST.pos).applyQuaternion(qStI);
+// The ship's velocity in the (turning) station frame.
+function relVelStation(out) { sw.subVectors(S.pos, ST.pos); return out.subVectors(S.vel, ST.vel).sub(tV.crossVectors(wSt, sw)).applyQuaternion(qStI); }
+
+const {hubR, hubLen, ringR, ringTube, spokeR, bay: BAY, wings: WING, dish: DISH} = STATION;
+const SHIP_R = 16, HUB_COL = hubR + 50; // the ship's reach for station collisions; the hub with its bolted-on modules
+const keepOut = p => Math.hypot(p.x, p.y) < 1600 && p.z > -800 && p.z < 470; // the station's body, give or take
+// Is a ship centred at station-frame point p touching the station? Hub (the bay is a hole only with the doors
+// open), the ring with the shacks on it, its spokes (turning with it), the solar wings and the dish.
+function hitsStation(p) {
+  const {x, y, z} = p, rxy = Math.hypot(x, y), r = SHIP_R;
+  if (Math.abs(z) < hubLen / 2 + r && rxy < HUB_COL + r) {
+    const inBay = z > hubLen / 2 - BAY.depth + r && Math.abs(x) < BAY.w / 2 - r && Math.abs(y) < BAY.h / 2 - r;
+    if (!inBay || (z > hubLen / 2 - 6 && S.bay < 0.95)) return true;
+  }
+  if (Math.hypot(rxy - ringR, z) < ringTube + 30 + r) return true;
+  for (let k = 0; k < 4; k++) {
+    const a = ringAngle(S.t) + k * Math.PI / 2, along = x * Math.cos(a) + y * Math.sin(a);
+    if (along > hubR && along < ringR && Math.hypot(x * Math.sin(a) - y * Math.cos(a), z) < spokeR + r) return true;
+  }
+  if (Math.abs(z - WING.z) < 4 + r && Math.abs(y) < WING.h / 2 + r && Math.abs(x) > WING.x0 - r && Math.abs(x) < WING.x1 + r) return true;
+  return Math.hypot(x, y, z - DISH.z) < DISH.r + r;
+}
+function stationInfo() {
+  tmpA.subVectors(ST.pos, S.pos); tmpB.subVectors(ST.vel, S.vel); const d = tmpA.length();
+  O.stDist = d; O.stSpeed = tmpB.length(); O.stClose = -tmpA.dot(tmpB) / Math.max(d, 1); O.hbDist = HB.pos.distanceTo(S.pos);
+  O.dockable = false;
+  if (S.dock || S.landed || S.crash || d > STATION.dockRange || O.stSpeed > STATION.dockSpeed) return;
+  stationFrame(); O.dockable = !keepOut(toStation(S.pos, sp));
+}
+
+// ---- docking ----
+// The run is a path in the station's frame, made of Hermite legs through points with a velocity at each
+// (arrays, so S.dock saves as plain data). 'approach': brake to a stop, go round the station if it is in the
+// way, end at the approach point behind the bay facing it. 'in': through the doors to the pad. 'docked'.
+// 'out': back to the approach point once the doors are open, then the ship is released.
+const PAD = new V3(...STATION.pad), APPROACH = new V3(...STATION.approach), CRUISE = 90, BAY_SPEED = 12, DOOR_TIME = 8; // m/s, m/s in the bay, s
+const hp0 = new V3(), hp1 = new V3(), hm0 = new V3(), hm1 = new V3();
+function makePath(pts, v0, cruise = CRUISE) { // rest at the end; between, velocities that follow the points (Catmull-Rom)
+  const durs = [], tans = [v0.toArray()];
+  for (let i = 0; i + 1 < pts.length; i++) durs.push(Math.max(10, pts[i].distanceTo(pts[i + 1]) / cruise));
+  for (let i = 1; i < pts.length - 1; i++) tans.push(pts[i + 1].clone().sub(pts[i - 1]).divideScalar(durs[i - 1] + durs[i]).toArray());
+  tans.push([0, 0, 0]);
+  return {pts: pts.map(p => p.toArray()), tans, durs};
+}
+const pathTime = path => path.durs.reduce((a, b) => a + b, 0);
+function pathAt(path, t, outP, outV) {
+  let i = 0; while (i < path.durs.length - 1 && t > path.durs[i]) { t -= path.durs[i]; i++; }
+  const D = path.durs[i], s = clamp(t / D, 0, 1), s2 = s * s, s3 = s2 * s;
+  hp0.fromArray(path.pts[i]); hp1.fromArray(path.pts[i + 1]); hm0.fromArray(path.tans[i]).multiplyScalar(D); hm1.fromArray(path.tans[i + 1]).multiplyScalar(D);
+  outP.copy(hp0).multiplyScalar(2 * s3 - 3 * s2 + 1).addScaledVector(hm0, s3 - 2 * s2 + s).addScaledVector(hp1, -2 * s3 + 3 * s2).addScaledVector(hm1, s3 - s2);
+  outV.copy(hp0).multiplyScalar(6 * s2 - 6 * s).addScaledVector(hm0, 3 * s2 - 4 * s + 1).addScaledVector(hp1, -6 * s2 + 6 * s).addScaledVector(hm1, 3 * s2 - 2 * s).divideScalar(D);
+}
+const segmentClear = (a, b) => { for (let i = 0; i <= 40; i++) if (keepOut(tV.lerpVectors(a, b, i / 40))) return false; return true; };
+// From station-frame position p0 and velocity v0: brake to a stop at 2 m/s², then to the approach point,
+// round the outside of the station (2.6 km from its axis) if it is in the way.
+function approachPath(p0, v0) {
+  const T0 = Math.max(2, v0.length() / 2), p1 = p0.clone().addScaledVector(v0, T0 / 2), r1 = Math.hypot(p1.x, p1.y);
+  const ux = r1 > 1 ? p1.x / r1 : 0, uy = r1 > 1 ? p1.y / r1 : 1, at = (rad, z) => new V3(ux * rad, uy * rad, z);
+  const way = segmentClear(p1, APPROACH) ? [] : r1 >= 1600 ? [at(Math.max(r1, 2600), 1300)] : [at(2600, p1.z), at(2600, 1300)];
+  const rest = makePath([p1, ...way, APPROACH], zero);
+  return {pts: [p0.toArray(), ...rest.pts], tans: [v0.toArray(), ...rest.tans], durs: [T0, ...rest.durs]};
+}
+// Ask to dock (only when O.dockable): station control takes over.
+export function requestDock() {
+  if (!O.dockable) return false;
+  stationFrame(); toStation(S.pos, sp); relVelStation(sv);
+  S.dock = {phase: 'approach', t: 0, path: approachPath(sp.clone(), sv.clone()), q0: tQ.copy(qStI).multiply(S.quat).toArray()};
+  S.hold = null; S.hover = false; S.throttle = 0; S.warpIdx = 0; S.w.set(0, 0, 0);
+  return true;
+}
+export function startUndock() {
+  if (!S.dock || S.dock.phase !== 'docked') return false;
+  S.dock = {phase: 'out', t: 0, path: makePath([PAD, APPROACH], zero, BAY_SPEED)}; S.warpIdx = 0;
+  return true;
+}
+function stepDock(dt, T) {
+  const d = S.dock; advanceNpcs(T); S.t += T; stationFrame();
+  const total = d.path ? pathTime(d.path) : 0;
+  const open = d.phase === 'in' || d.phase === 'out' || (d.phase === 'approach' && total - d.t < 20);
+  S.bay = clamp(S.bay + (open ? T : -T) / DOOR_TIME, 0, 1);
+  if (d.phase !== 'out' || S.bay > 0.98) d.t += T; // undocking waits for the doors
+  qLoc.identity();
+  if (d.phase === 'docked') { sp.copy(PAD); sv.set(0, 0, 0); }
+  else {
+    pathAt(d.path, Math.min(d.t, total), sp, sv);
+    if (d.phase === 'approach') qLoc.fromArray(d.q0).slerp(qI, smooth(0, 0.4 * total, d.t));
+    // Backing out, then turning around once clear of the bay mouth, so it leaves nose first.
+    else if (d.phase === 'out') qLoc.setFromAxisAngle(yAxis, Math.PI * smooth(STATION.hubLen / 2 + 60, STATION.hubLen / 2 + 360, sp.z));
+  }
+  S.legsDown = d.phase === 'docked' || (d.phase === 'in' && d.t > 25) || (d.phase === 'out' && d.t < 20);
+  S.legs = clamp(S.legs + (S.legsDown ? dt : -dt) / LEG_TIME, 0, 1);
+  // The pose follows the station (which moved this step), then the next phase can start from it.
+  S.pos.copy(sp).applyQuaternion(qSt).add(ST.pos);
+  S.vel.copy(sv).applyQuaternion(qSt).add(ST.vel).add(tV.crossVectors(wSt, sw.subVectors(S.pos, ST.pos)));
+  S.quat.copy(qSt).multiply(qLoc); S.w.set(0, 0, 0); S.aMain = S.aLift = 0;
+  if (d.phase === 'docked' || d.t < total) return;
+  if (d.phase === 'approach') { d.phase = 'in'; d.t = 0; d.path = makePath([APPROACH, PAD], zero, BAY_SPEED); }
+  else if (d.phase === 'in') { d.phase = 'docked'; d.t = 0; d.path = null; notify('docked', `Docked at ${STATION.name}, bay 3.`); saveCheckpoint(); }
+  else release();
+}
+// Out of the bay: the ship drifts clear at 3 m/s and is yours again.
+function release() {
+  S.dock = null; S.legsDown = false;
+  S.vel.copy(ST.vel).add(tV.crossVectors(wSt, sw.subVectors(S.pos, ST.pos))).add(sv.set(0, 0, 3).applyQuaternion(qSt));
+  notify('undocked', `Clear of ${STATION.name}. Fly safe.`);
 }
 
 // Predicted path (gravity only, Tal moving) written into out as xyz triples in the universe frame.
