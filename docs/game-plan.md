@@ -127,13 +127,25 @@ What was built:
 - Saving: one save in the browser, written on docking, every minute of flight, on pause and when the page is hidden. The intro card offers Continue and New game. The crash checkpoint is also kept within 20 km of the station and on docking.
 - Tests: drifting until the offer comes, the offer's limits, docking onto the pad and staying put through 1000× warp, docking from in front goes round, undocking (nose first, clear of the station, doors shut), hitting the station, a save brought back exactly, the Halberd's pass.
 
-### Phase 3: The hangar
+### Phase 3: The hangar (done)
 
 - The hangar scene inside the station: your ship on its pad, aliens from the asset packs, ambient life.
 - Customs (easy) and a trader to sell the contraband; money.
 - First sounds.
 
 Done when: the first mission plays end to end.
+
+What was built:
+- Models: CC0 animated characters by Quaternius and props from Kenney's Space Kit, in `public/hangar/` (about 3 MB), every file listed with its source in `CREDITS.md`. The asset sites are blocked from the build environment, so they came through npm mirrors of the same packs.
+- The hangar (`src/hangar/`): its own scene, drawn instead of space once the doors close. A hall 112 by 92 m with "Bay 3" on the back wall and the doors you came in by; the Mudlark on its pad, gear down; the customs booth with a scanner gate; Mama Gorrit's stall ("We buy anything") and Spore and Sons next door; cargo with a moving lift, a crane, a rover, two parked craft, turrets by the doors.
+- The crowd: about twenty aliens, people and droids. They walk set loops (and stop now and then), chat, dance, fly circles overhead, and the drone inspects your hull. Tap any of them for a line. The loops are tested to stay clear of the ship, the stalls and the walls.
+- Customs: Inspector Drab, a frog-faced officer in a spacesuit, walks over from his booth when you arrive: "Anything to declare?" Every answer clears you; slipping him 20 credits tips you off that Mama Gorrit pays 10% more.
+- The trader: Mama Gorrit buys the 8 crates of glowmoss at 150 credits each; one haggle has a 60% chance of 15% more and never makes it worse. Selling ends the first run ("Jobs, upgrades and the bar open in the next update").
+- The overlay: where you are, credits, the hold and what to do next; name tags over Drab and Gorrit; cards you choose through; Customs, Market, Look around and Undock. Drag to look around, pinch or wheel to zoom.
+- Loading: the hangar's code and models start downloading when you ask to dock, so they are in by the time the doors close; the docked card shows progress, or says why it failed and offers Undock.
+- Sound (`src/sound.js`, Web Audio, no files): the main engine's rumble, the lift thrusters, thruster hiss, the bay doors, a docking chime and clunk, a landing clunk, the crash, a double beep at "Brake now", the hangar's murmur and hum, the customs stamp, coins. On after the first tap; Sound on and off on the pause card.
+- Saving now keeps credits, the hold and the first run's progress too.
+- Tests: the first run's rules (customs, the tip, haggling, selling, the save) and the walking paths.
 
 ### Phase 4: Upgrades and jobs
 
@@ -161,10 +173,10 @@ The rest of the system, then other stars.
 | Ships as data | 1 and 2 | Model, size, thrust, turn rates and contact points per ship, so upgrades and other ships (the Halberd) use the same flight model. Today `stepFlight` flies one global ship `S`; split it. |
 | Docked state | 2 | Like the landed state on Tal: the pose is kept in the station's frame and follows its orbit at any time warp. The docking run is a short path in that frame. |
 | Station orbit | 2 | The station and the Halberd move under the same gravity as the ship, stepped with it, so a matched ship stays matched. |
-| Scenes | 3 | The hangar is its own three.js scene, like the bridge interior. Space keeps its state while you are inside. |
-| Asset loading | 3 | glTF loader, small compressed models, loaded on first dock, a credits file for licences. |
+| Scenes | 3 (done) | The hangar is its own three.js scene, drawn instead of space; physics keeps running while you are inside. |
+| Asset loading | 3 (done) | glTF loader with meshopt, about 3 MB, fetched when you ask to dock, `CREDITS.md` for licences. |
 | Saving | 2 | Versioned, in the browser's storage. Phase 2 saves the flight (ship, station, Halberd, docked or not); cargo, money and progress join it in phase 3. |
-| Sound | 3 | Web Audio; phone browsers only allow sound after a tap. |
+| Sound | 3 (done) | Web Audio, synthesized; phone browsers only allow sound after a tap. |
 | Performance | always | 60 fps on the phone; the `?debug` line is the tool. A hangar full of animated aliens needs a budget too. |
 
 ## Decisions
@@ -189,4 +201,4 @@ Still to confirm (recommendations):
 13. **Ship and station models** built from shapes in code (like the Halberd), with asset packs used for the aliens and small props.
 14. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
-Next: phase 3, the hangar.
+Next: phase 4, upgrades and jobs.

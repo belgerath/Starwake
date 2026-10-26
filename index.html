@@ -69,13 +69,45 @@
     </div>
   </div>
 
+  <div id="hangar" hidden>
+    <div id="hgView" aria-label="Hangar view: drag to look around, pinch to zoom, tap someone to talk"></div>
+    <div class="hgInfo">
+      <p class="sub">Tumbledown · bay 3</p>
+      <div class="hgRows">
+        <span class="lab">Credits</span><span class="val" id="hgCredits">0</span>
+        <span class="lab">Hold</span><span class="hgHold" id="hgHold">Empty</span>
+      </div>
+      <p class="hgGoal" id="hgGoal"></p>
+    </div>
+    <div class="tr"><div class="trrow"><button class="btn" id="hgHelp" type="button" aria-label="Pause and show controls">?</button></div></div>
+    <button class="hgTag" id="hgTag-customs" type="button" hidden><span>Inspector Drab</span><small>Customs</small></button>
+    <button class="hgTag" id="hgTag-trader" type="button" hidden><span>Mama Gorrit</span><small>Trader</small></button>
+    <div class="hgSay" id="hgSay" role="status" hidden></div>
+    <div class="hgBar">
+      <button class="chip" id="hgCustoms" type="button">Customs</button>
+      <button class="chip" id="hgTrader" type="button">Market</button>
+      <button class="chip" id="hgLook" type="button">Look around</button>
+      <button class="launch" id="hgUndock" type="button">Undock</button>
+    </div>
+    <div class="card hgCard" id="hgCard" role="dialog" aria-labelledby="hgWho" hidden>
+      <div>
+        <p class="sub" id="hgRole"></p>
+        <h2 class="wordmark" id="hgWho"></h2>
+      </div>
+      <p id="hgText"></p>
+      <p class="hgQuote" id="hgQuote"></p>
+      <div class="hgOpts" id="hgOpts"></div>
+    </div>
+    <div class="hgFade" id="hgFade"></div>
+  </div>
+
   <div id="intro">
     <div class="card">
       <div>
         <p class="sub">First run · Tumbledown</p>
         <h1 class="wordmark">Starwake</h1>
       </div>
-      <p>You fly the Mudlark, a battered 35 m transport with a hold full of contraband, 400 km above Veyra at over 7 km/s. Tumbledown, a huge station where outcasts and misfits trade, is 25 km ahead and a little higher, drifting closer. Within 10 km and slower than 50 m/s you can ask to dock. Time warp brings it to you.</p>
+      <p>You fly the Mudlark, a battered 35 m transport with a hold full of contraband, 400 km above Veyra at over 7 km/s. Tumbledown, a huge station where outcasts and misfits trade, is 25 km ahead and a little higher, drifting closer. Within 10 km and slower than 50 m/s you can ask to dock. Time warp brings it to you. Inside, clear customs and sell the 8 crates of glowmoss in your hold.</p>
       <p>The physics are real: nothing slows you down except your own engines, which are weak for now, and gravity bends your path into an orbit. To land on Tal, brake to a stop low over the ground, then tap Hover and settle down slower than 3 m/s, level, on flat ground.</p>
       <dl class="keys" id="keysKb">
         <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down</dd>
@@ -111,6 +143,7 @@
         <button class="launch" id="launchBtn" type="button" hidden>Launch</button>
         <button class="launch alt" id="newBtn" type="button" hidden>New game</button>
         <button class="launch alt" id="talBtn" type="button" hidden>Start above Tal</button>
+        <button class="launch alt" id="soundBtn" type="button" aria-pressed="true">Sound on</button>
         <span id="status">Generating Veyra…</span>
       </div>
     </div>
@@ -123,7 +156,7 @@
         <h2 class="wordmark">Tumbledown</h2>
       </div>
       <p>A wheel of patched-together habitats where outcasts, traders and people who would rather not be found do business. Customs here is mostly a formality.</p>
-      <p>The hangar, customs and the traders open in the next update.</p>
+      <p id="dockedMsg">Opening the hangar…</p>
       <div class="go">
         <button class="launch" id="undockBtn" type="button">Undock</button>
       </div>

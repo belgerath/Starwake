@@ -32,6 +32,7 @@ export function initHud(actions) {
   $('warpDn').addEventListener('click', () => actions.warpStep(-1));
   $('launchBtn').addEventListener('click', actions.launch);
   $('talBtn').addEventListener('click', actions.startTal);
+  $('soundBtn').addEventListener('click', actions.toggleSound);
   $('newBtn').addEventListener('click', actions.newGame);
   $('dockYes').addEventListener('click', actions.requestDock);
   $('dockNo').addEventListener('click', actions.declineDock);
@@ -68,9 +69,12 @@ export function setStatus(text) { $('status').textContent = text; }
 export function setReady(saved) { $('status').hidden = true; $('launchBtn').textContent = saved ? 'Continue' : 'Launch'; $('launchBtn').hidden = false; $('newBtn').hidden = !saved; $('talBtn').hidden = false; }
 export function hideIntro() { $('intro').hidden = true; $('newBtn').hidden = true; $('launchBtn').blur(); $('talBtn').blur(); }
 export function showIntro(btnLabel) { $('launchBtn').textContent = btnLabel; $('intro').hidden = false; }
-// The docking prompt, while Tumbledown is in range; the docked card, while sitting in the bay.
+// The docking prompt, while Tumbledown is in range; the docked card, while the hangar opens (or if it cannot).
 export function setDockAsk(on) { const el = $('dockAsk'); if (el.hidden === !on) return; el.hidden = !on; $('dockAskText').textContent = STATION.name + ' in range'; }
-export function setDocked(on) { if ($('docked').hidden === !on) return; $('docked').hidden = !on; if (on) $('undockBtn').focus({preventScroll: true}); else $('undockBtn').blur(); }
+export function setDocked(on, msg = '') {
+  if ($('dockedMsg').textContent !== msg) $('dockedMsg').textContent = msg;
+  if ($('docked').hidden === !on) return; $('docked').hidden = !on; if (on) $('undockBtn').focus({preventScroll: true}); else $('undockBtn').blur();
+}
 // Crash card: what went wrong, Try again (from the checkpoint, when there is one) and Back to orbit.
 export function showCrash(msg, canRetry) {
   $('crashMsg').textContent = msg; $('retryBtn').hidden = !canRetry; $('crash').hidden = false;

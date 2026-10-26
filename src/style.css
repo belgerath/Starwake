@@ -92,7 +92,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #thrKnob{position:absolute;left:3px;right:3px;bottom:3px;height:38px;border-radius:19px;background:rgba(217,231,244,.22);border:1px solid rgba(217,231,244,.55)}
 #thrHover{position:absolute;left:-7px;right:-7px;bottom:0;height:2px;margin-bottom:-1px;background:var(--go);border-radius:1px;will-change:transform}
 .trk-lab{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-family:var(--f-display);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
-#intro,#crash,#docked{position:absolute;inset:0;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
+#intro,#crash,#docked{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
 .card{width:min(460px,100%);background:rgba(7,12,22,.88);border:1px solid var(--line);border-radius:6px;padding:24px 22px;display:grid;gap:18px}
 .sub{font-family:var(--f-display);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
 .wordmark{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:.08em;text-transform:uppercase;line-height:1.1;margin:0;text-wrap:balance}
@@ -107,6 +107,47 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
 .launch.alt{color:var(--amber);background:transparent;border:1px solid var(--amber)}
 #status{font-family:var(--f-num);font-size:12px;color:var(--ink-dim)}
 #dbg{position:absolute;left:var(--edge-l);top:calc(176px + env(safe-area-inset-top,0px));max-width:calc(100% - 2 * var(--edge-l));font-family:var(--f-num);font-size:10px;line-height:1.4;color:var(--go);background:var(--panel);padding:3px 6px;border-radius:3px}
+/* Hangar: the view takes every gesture; info top-left, pause top-right, actions along the bottom, the card
+   you talk through on the right (a sheet along the bottom on a narrow portrait screen). */
+#hangar{position:absolute;inset:0;z-index:1}
+#hgView{position:absolute;inset:0;touch-action:none;cursor:grab}
+#hgView:active{cursor:grabbing}
+.hgInfo{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:var(--edge-l);max-width:min(340px,calc(100% - 2 * var(--edge-l) - 60px));background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:11px 13px;pointer-events:none}
+.hgInfo .sub{margin-bottom:8px}
+.hgRows{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline}
+.hgRows .val{font-size:18px}
+.hgHold{font-size:14px;color:var(--ink)}
+.hgGoal{margin:8px 0 0;font-size:14px;line-height:1.35;color:var(--go)}
+.hgTag{position:absolute;left:0;top:0;display:grid;justify-items:center;gap:1px;padding:5px 9px;background:var(--panel);border:1px solid var(--amber);border-radius:4px;color:var(--ink);font-family:var(--f-ui);font-size:13px;cursor:pointer;will-change:transform;white-space:nowrap}
+.hgTag small{font-family:var(--f-display);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.hgSay{position:absolute;left:0;top:0;max-width:min(300px,80vw);padding:8px 12px;background:rgba(7,12,22,.88);border:1px solid var(--line);border-radius:6px;font-size:14px;line-height:1.4;color:var(--ink);pointer-events:none;will-change:transform}
+.hgBar{position:absolute;left:var(--edge-l);right:var(--edge-r);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;align-items:center;gap:8px;pointer-events:none}
+.hgBar>*{pointer-events:auto}
+.hgBar .launch{margin-left:auto;height:42px;padding:0 20px}
+.hgBar .chip{height:42px;padding:0 14px}
+.hgBar .chip.ok{border-color:var(--go);color:var(--go)}
+.hgCard{position:absolute;right:var(--edge-r);top:50%;transform:translateY(-50%);box-sizing:border-box;width:min(400px,calc(100% - var(--edge-l) - var(--edge-r)));max-height:calc(100% - 140px);overflow:auto;gap:14px}
+/* While talking: the card has the screen's right side (and the pause button's corner); on a phone the
+   bottom row keeps only Undock. */
+#hangar.talking .tr,#hangar.talking .hgTag{display:none}
+.hgCard .wordmark{font-size:24px}
+.hgCard p{font-size:15px}
+.hgQuote{color:var(--ink)!important;border-left:2px solid var(--amber);padding-left:12px}
+.hgOpts{display:grid;gap:8px}
+.hgOpts .launch{height:44px;padding:0 16px;text-align:left}
+.hgFade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.hgFade.out{animation:hgFade .8s ease-out}
+@keyframes hgFade{from{opacity:1}to{opacity:0}}
+@media (max-height:520px){
+  .hgInfo{padding:7px 10px}.hgInfo .sub{margin-bottom:4px}.hgGoal{margin-top:4px;font-size:13px}
+  .hgBar .chip,.hgBar .launch{height:36px}
+  .hgCard{top:calc(10px + env(safe-area-inset-top,0px));transform:none;max-height:calc(100% - 66px - env(safe-area-inset-bottom,0px));gap:10px;padding:14px}
+  .hgCard .wordmark{font-size:19px}.hgCard p{font-size:14px}.hgOpts .launch{height:38px}
+}
+@media (max-width:600px) and (min-height:521px){
+  .hgCard{top:auto;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:none;max-height:calc(100% - 240px)}
+  #hangar.talking .hgBar .chip{display:none}
+}
 @media (max-height:520px){#dbg{top:calc(150px + env(safe-area-inset-top,0px))}}
 @media (max-height:520px){
   .readouts{gap:5px 12px;padding:7px 10px}
