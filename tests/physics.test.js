@@ -2,8 +2,9 @@
 // If a change makes one of these fail, it changed how the ship flies: decide on purpose.
 import {describe, it, expect, beforeEach} from 'vitest';
 import * as THREE from 'three';
-import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT, setNotifier, hasCheckpoint, restoreCheckpoint, setHover, STAND_H} from '../src/physics.js';
-import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, MOON_INC, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP} from '../src/config.js';
+import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT, setNotifier, hasCheckpoint, restoreCheckpoint, setHover, STAND_H,
+  ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore} from '../src/physics.js';
+import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, MOON_INC, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
 
 const SUN = new THREE.Vector3(...SUN_DIR).normalize();
 const idle = {pitch: 0, yaw: 0, roll: 0, boost: false, retro: false};
@@ -219,5 +220,72 @@ describe('landing on Tal', () => {
     expect(hasCheckpoint()).toBe(true); expect(restoreCheckpoint()).toBe(true);
     expect(S.crash).toBe(null); expect(S.landed).toBe(false);
     expect(O.agl).toBeLessThan(15e3); expect(O.agl).toBeGreaterThan(14e3); expect(O.vv).toBeLessThan(0);
+  });
+});
+
+describe('Tumbledown', () => {
+  const V = () => new THREE.Vector3(), Q = () => new THREE.Quaternion();
+  // The ship's position in the station's frame, and a way to put it there (velocity relative to the station).
+  const inStation = () => S.pos.clone().sub(ST.pos).applyQuaternion(lvlhQuat(ST, Q()).invert());
+  const placeAt = (p, v = V()) => { const q = lvlhQuat(ST, Q()); S.pos.copy(p).applyQuaternion(q).add(ST.pos); S.vel.copy(v).applyQuaternion(q).add(ST.vel); S.hold = null; orbInfo(); };
+  const pad = new THREE.Vector3(...STATION.pad);
+  // Fly the docking run to the end of a phase, checking it never cuts through the station on the way.
+  const runDock = phase => {
+    let clear = true;
+    for (let i = 0; i < 8000 && S.dock && S.dock.phase !== phase; i++) {
+      run(0.05); const p = inStation(), rxy = Math.hypot(p.x, p.y);
+      if (rxy < 1500 && p.z > -800 && p.z < 450 && !(rxy < 60 && p.z > 150)) clear = false; // only the bay is allowed
+    }
+    return clear;
+  };
+
+  it('starts 25 km ahead and a little higher, so it drifts closer until docking is offered', () => {
+    expect(O.stDist).toBeGreaterThan(24e3); expect(O.stDist).toBeLessThan(26e3);
+    expect(O.stClose).toBeGreaterThan(3); expect(O.stClose).toBeLessThan(8); expect(O.dockable).toBe(false);
+    S.hold = null; S.warpIdx = 2; let t = 0; while (!O.dockable && t < 8000) { run(0.5); t += 50; }
+    expect(O.dockable).toBe(true); expect(O.stDist).toBeLessThan(STATION.dockRange); expect(S.crash).toBe(null);
+  });
+  it('offers docking only within 10 km and under 50 m/s', () => {
+    placeAt(new THREE.Vector3(0, 0, 8000), new THREE.Vector3(0, 0, -30)); expect(O.dockable).toBe(true);
+    placeAt(new THREE.Vector3(0, 0, 8000), new THREE.Vector3(0, 0, -60)); expect(O.dockable).toBe(false);
+    placeAt(new THREE.Vector3(0, 0, 12000)); expect(O.dockable).toBe(false);
+    expect(requestDock()).toBe(false);
+  });
+  it('station control flies the ship in to the pad, and it stays docked through 1000× time warp', () => {
+    placeAt(new THREE.Vector3(1500, -900, 7000), new THREE.Vector3(-10, 5, -40)); expect(requestDock()).toBe(true);
+    expect(runDock('docked')).toBe(true);
+    expect(S.dock.phase).toBe('docked'); expect(S.crash).toBe(null); run(10);
+    expect(inStation().distanceTo(pad)).toBeLessThan(0.5); expect(S.legs).toBe(1); expect(S.bay).toBe(0);
+    S.warpIdx = 3; run(20); // over 5 hours
+    expect(S.warpIdx).toBe(3); expect(S.dock.phase).toBe('docked'); expect(inStation().distanceTo(pad)).toBeLessThan(0.5); expect(O.stSpeed).toBeLessThan(2);
+  });
+  it('docking from in front goes round the station, not through it', () => {
+    placeAt(new THREE.Vector3(200, 100, -6000)); expect(requestDock()).toBe(true);
+    expect(runDock('docked')).toBe(true); expect(S.dock.phase).toBe('docked');
+  });
+  it('undocking backs out of the bay, turns around and lets the ship go, clear of the station', () => {
+    placeAt(new THREE.Vector3(0, 0, 6000)); requestDock(); runDock('docked');
+    expect(startUndock()).toBe(true); for (let i = 0; i < 4000 && S.dock; i++) run(0.05);
+    expect(S.dock).toBe(null); expect(inStation().distanceTo(new THREE.Vector3(...STATION.approach))).toBeLessThan(5); expect(O.stSpeed).toBeLessThan(5);
+    const nose = new THREE.Vector3(0, 0, -1).applyQuaternion(S.quat), away = S.pos.clone().sub(ST.pos).normalize();
+    expect(nose.dot(away)).toBeGreaterThan(0.99); // nose first, away from the station
+    run(120); expect(S.crash).toBe(null); expect(S.bay).toBe(0);
+  });
+  it('flying into the station is a crash', () => {
+    placeAt(new THREE.Vector3(0, 0, 800), new THREE.Vector3(0, 0, -20)); run(40);
+    expect(S.crash).toMatch(/^You hit Tumbledown at \d+(\.\d)? m\/s\.$/);
+  });
+  it('a snapshot brings the whole flight back, docked or not', () => {
+    placeAt(new THREE.Vector3(0, 0, 6000)); requestDock(); runDock('docked');
+    const snap = JSON.parse(JSON.stringify(snapshot())), p0 = S.pos.clone(), st0 = ST.pos.clone(), t0 = S.t;
+    S.warpIdx = 3; run(5); expect(S.t - t0).toBeGreaterThan(4000);
+    restore(snap);
+    expect(S.t).toBe(t0); expect(S.pos.distanceTo(p0)).toBeLessThan(1e-6); expect(ST.pos.distanceTo(st0)).toBeLessThan(1e-6); expect(S.dock.phase).toBe('docked');
+  });
+  it('the Halberd patrols higher up and passes overhead within the hour', () => {
+    S.hold = null; S.warpIdx = 2; let min = Infinity;
+    for (let t = 0; t < 4000; t += 50) { run(0.5); min = Math.min(min, O.hbDist); }
+    expect(min).toBeLessThan(25e3); expect(min).toBeGreaterThan(10e3);
+    expect(HB.pos.length() - R).toBeGreaterThan(400e3);
   });
 });

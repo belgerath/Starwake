@@ -25,6 +25,11 @@
     </div>
     <div class="cue" id="cue" role="status" hidden></div>
     <div class="cue" id="land" role="status" hidden></div>
+    <div class="cue ask" id="dockAsk" role="group" aria-label="Docking" hidden>
+      <span id="dockAskText">Tumbledown in range</span>
+      <button class="chip" id="dockYes" type="button">Request docking</button>
+      <button class="chip" id="dockNo" type="button">Not now</button>
+    </div>
     <div class="tr">
       <div class="trrow">
         <button class="btn" id="camBtn" type="button">Chase</button>
@@ -35,7 +40,7 @@
     <div id="markers"></div>
     <div class="vm" id="vmPro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 2v6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/></svg></div>
     <div class="vm" id="vmRetro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 11l8 8M19 11l-8 8M15 28v-6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/></svg></div>
-    <div class="shipmk" id="shipMk" hidden><i></i><span>You</span></div>
+    <div class="shipmk" id="shipMk" hidden><i></i><span>Mudlark</span></div>
     <div id="toast" role="status"></div>
     <div id="fstick" hidden><div id="fknob"></div></div>
     <div class="fc" id="fc">
@@ -67,11 +72,11 @@
   <div id="intro">
     <div class="card">
       <div>
-        <p class="sub">Phase 1 · Flight test</p>
+        <p class="sub">First run · Tumbledown</p>
         <h1 class="wordmark">Starwake</h1>
       </div>
-      <p>Your ship, a battered 35 m transport with a hold full of contraband, is in orbit 400 km above Veyra at over 7 km/s. Its engine is weak for now, so burns take a while. The physics are real: nothing slows you down except your own engines, and gravity bends your path into an orbit. To slow down, hold Retrograde and burn. Use time warp to cross the distances.</p>
-      <p>To land on Tal, brake to a stop low over the ground, then tap Hover: the belly thrusters hold you up and the ship levels itself when you let go of the stick. Touch down slower than 3 m/s, level, on flat ground.</p>
+      <p>You fly the Mudlark, a battered 35 m transport with a hold full of contraband, 400 km above Veyra at over 7 km/s. Tumbledown, a huge station where outcasts and misfits trade, is 25 km ahead and a little higher, drifting closer. Within 10 km and slower than 50 m/s you can ask to dock. Time warp brings it to you.</p>
+      <p>The physics are real: nothing slows you down except your own engines, which are weak for now, and gravity bends your path into an orbit. To land on Tal, brake to a stop low over the ground, then tap Hover and settle down slower than 3 m/s, level, on flat ground.</p>
       <dl class="keys" id="keysKb">
         <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down</dd>
         <dt><kbd>Z</kbd><kbd>X</kbd></dt><dd>Full thrust, cut engines</dd>
@@ -84,7 +89,8 @@
         <dt><kbd>G</kbd></dt><dd>Hover on the belly thrusters (low over Tal)</dd>
         <dt><kbd>,</kbd><kbd>.</kbd></dt><dd>Slow down, speed up time</dd>
         <dt><kbd>C</kbd><kbd>M</kbd></dt><dd>Cycle cameras, map view</dd>
-        <dt><kbd>Click a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Request docking when offered, undock</dd>
+        <dt><kbd>Click a marker</kbd></dt><dd>Turn to face Veyra, Tal, Tumbledown or your motion</dd>
         <dt><kbd>Mouse drag</kbd></dt><dd>Steer</dd>
         <dt><kbd>Right drag</kbd></dt><dd>Look around, scroll to zoom</dd>
       </dl>
@@ -97,14 +103,29 @@
         <dt><kbd>Roll</kbd></dt><dd>Hold to roll left or right</dd>
         <dt><kbd>Prograde</kbd></dt><dd>Point along or against your motion</dd>
         <dt><kbd>Hover</kbd></dt><dd>Low over Tal: belly thrusters for landing</dd>
-        <dt><kbd>Tap a marker</kbd></dt><dd>Turn to face Veyra, Tal or your motion</dd>
+        <dt><kbd>Tap a marker</kbd></dt><dd>Turn to face Veyra, Tal, Tumbledown or your motion</dd>
         <dt><kbd>Time</kbd></dt><dd>Speed up or slow down time</dd>
         <dt><kbd>Chase</kbd></dt><dd>Switch to bridge or map (drag to rotate the map)</dd>
       </dl>
       <div class="go">
         <button class="launch" id="launchBtn" type="button" hidden>Launch</button>
+        <button class="launch alt" id="newBtn" type="button" hidden>New game</button>
         <button class="launch alt" id="talBtn" type="button" hidden>Start above Tal</button>
         <span id="status">Generating Veyra…</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="docked" class="overlay" hidden>
+    <div class="card">
+      <div>
+        <p class="sub">Bay 3 · docked</p>
+        <h2 class="wordmark">Tumbledown</h2>
+      </div>
+      <p>A wheel of patched-together habitats where outcasts, traders and people who would rather not be found do business. Customs here is mostly a formality.</p>
+      <p>The hangar, customs and the traders open in the next update.</p>
+      <div class="go">
+        <button class="launch" id="undockBtn" type="button">Undock</button>
       </div>
     </div>
   </div>
