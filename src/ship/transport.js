@@ -100,11 +100,11 @@ export function buildTransport() {
     m.position.copy(p); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); m.userData.op = op; vis.add(m); list.push(m); return m;
   };
   const sprite = (p, size, list) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: glowT, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false})); sp.position.copy(p); sp.scale.set(size, size, 1); sp.userData.base = size; vis.add(sp); list.push(sp); return sp; };
-  const lift = {flames: [], glows: [], len: 5};
+  const lift = {flames: [], glows: [], len: 5}, liftM = glowM(0x9fdcff);
   for (const [x, z] of [[4.5, 4.5], [-4.5, 4.5], [4.5, -4.5], [-4.5, -4.5]]) {
     const y = surfY(Math.hypot(x, z), false) - 0.06;
     add(new THREE.CylinderGeometry(0.95, 1.05, 0.25, 20), darkM, x, y + 0.05, z);
-    add(new THREE.CircleGeometry(0.75, 20), glowM(0x9fdcff), x, y - 0.08, z, Math.PI / 2, 0, 0);
+    add(new THREE.CircleGeometry(0.75, 20), liftM, x, y - 0.08, z, Math.PI / 2, 0, 0);
     flame(new THREE.Vector3(x, y - 0.1, z), new THREE.Vector3(0, -1, 0), 0.65, lift.flames, 0.75);
     sprite(new THREE.Vector3(x, y - 0.6, z), 3.2, lift.glows);
   }
@@ -143,5 +143,6 @@ export function buildTransport() {
 
   vis.traverse(m => { if (m.isMesh && m.material && m.material.isMeshStandardMaterial) { m.castShadow = true; m.receiveShadow = true; } });
   const mats = new Set(); vis.traverse(m => { if (m.isMesh && m.material && m.material.isMeshStandardMaterial) mats.add(m.material); });
-  return {root, vis, flames, glows, lift, hideInCockpit, strobe, dish, nav, eLight, setLegs, mats: [...mats], eye: new THREE.Vector3(...SHIP.eye), flameLen: 5};
+  // engineGlow: the engine band and the lift thrusters' discs, for dimming when the engines are cold (the hangar).
+  return {root, vis, flames, glows, lift, hideInCockpit, strobe, dish, nav, eLight, setLegs, engineGlow: [engM, liftM], mats: [...mats], eye: new THREE.Vector3(...SHIP.eye), flameLen: 5};
 }

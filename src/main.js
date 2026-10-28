@@ -15,7 +15,7 @@ import {updateSound, sfx, soundOn, setSound} from './sound.js';
 import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro, showCrash, hideCrash, setDockAsk, setDocked} from './hud.js';
 
 let ready = false, crashShown = false, dockDeclined = false, quietOut = 0, askShown = false, wasDocked = false, saveT = 0;
-// The hangar (hangar/ui.js, loaded on demand): HG once its models are in; inHangar while it is drawn instead of space.
+// The hangar (hangar/ui.js, loaded on demand): HG once it is built; inHangar while it is drawn instead of space.
 let HG = null, hgLoading = null, hgPct = 0, hgFailed = false, inHangar = false;
 
 function launch() { if (S.crash) return; S.launched = true; S.paused = false; hideIntro(); }
@@ -36,7 +36,7 @@ function undock() {
   if (inHangar) { HG.exit(); inHangar = false; }
   setDocked(false); dockDeclined = true; quietOut = 3000; saveGame();
 }
-// Starts fetching the hangar's code and models (a few MB) while the docking run plays, so it is ready on arrival.
+// Starts fetching and building the hangar while the docking run plays, so it is ready on arrival.
 function preloadHangar() {
   if (HG || hgLoading) return;
   hgFailed = false; hgPct = 0;

@@ -1,7 +1,8 @@
 // Sound, made with Web Audio from noise and a few oscillators (no files to download). Continuous beds
 // follow the ship each frame: the main engine's rumble, the lift thrusters' roar, the hiss of the attitude
-// and retro thrusters, the bay doors, and the hangar's murmur and machinery. One-shots for events: clunks,
-// a crash, the docking chime, a customs stamp, coins, taps. Browsers only allow sound after a tap or key,
+// and retro thrusters, the bay doors, and the hangar's drone, rumble and moving air, with distant metal
+// clanks echoing in it. One-shots for events: clunks, a crash, the docking chime, the customs seal, the
+// sale, taps. Browsers only allow sound after a tap or key,
 // so nothing starts before one; the on/off choice is remembered in the browser.
 const KEY = 'starwake.sound';
 let ctx = null, out = null, noise = null, beds = null, on = true;
@@ -40,11 +41,15 @@ function makeBeds() {
   // Bay doors grinding: low noise and a 55 Hz hum.
   b.door = chain(src(), filt('lowpass', 240), gain()); b.door.connect(out);
   b.doorHum = chain(osc('triangle', 55), gain()); b.doorHum.connect(out);
-  // The hangar: a crowd's murmur (band-passed noise swelling slowly), a mains hum, a faint high chatter.
-  const lfo = osc('sine', 0.17), lfoG = gain(0.35); lfo.connect(lfoG);
-  b.crowd = gain(); const cg = gain(0.6); lfoG.connect(cg.gain); chain(src(), filt('bandpass', 420, 0.9), cg, b.crowd); b.crowd.connect(out);
-  b.chat = chain(src(), filt('bandpass', 1500, 3), gain()); b.chat.connect(out);
-  b.hum = gain(); chain(osc('sine', 60), gain(0.6), b.hum); chain(osc('sine', 120), gain(0.25), b.hum); b.hum.connect(out);
+  // The hangar: a low drone of detuned tones beating slowly, a deep rumble, air moving through the hall
+  // (swelling and fading), and a faint low murmur of voices.
+  b.drone = gain(); for (const [f, v] of [[41.2, 0.5], [41.6, 0.5], [55, 0.35], [82.4, 0.12]]) chain(osc('sine', f), gain(v), b.drone);
+  const df = filt('lowpass', 140); b.drone.connect(df); df.connect(out);
+  b.rumble = chain(src(), filt('lowpass', 90), gain()); b.rumble.connect(out);
+  const lfo = osc('sine', 0.06), lfoG = gain(0.5); lfo.connect(lfoG);
+  b.air = gain(); const ag = gain(0.6); lfoG.connect(ag.gain); chain(src(), filt('bandpass', 700, 0.4), ag, b.air); b.air.connect(out);
+  b.voices = chain(src(), filt('bandpass', 300, 1.2), gain()); b.voices.connect(out);
+  b.nextClank = 0;
   return b;
 }
 const level = (g, v, tc = 0.08) => g.gain.setTargetAtTime(v, ctx.currentTime, tc);
@@ -58,8 +63,19 @@ export function updateSound(st) {
   level(beds.lift, q * 0.3 * st.lift);
   level(beds.hiss, q * (0.05 * Math.min(1, st.turn) + (st.retro ? 0.09 : 0)), 0.03);
   level(beds.door, q * 0.4 * st.doors, 0.2); level(beds.doorHum, q * 0.12 * st.doors, 0.2);
-  const h = st.hangar ? 1 : 0;
-  level(beds.crowd, 0.22 * h, 0.5); level(beds.chat, 0.03 * h, 0.5); level(beds.hum, 0.05 * h, 0.5);
+  const h = st.hangar ? 1 : 0, now = ctx.currentTime;
+  level(beds.drone, 0.16 * h, 0.8); level(beds.rumble, 0.35 * h, 0.8); level(beds.air, 0.05 * h, 0.8); level(beds.voices, 0.06 * h, 0.8);
+  // Somewhere far off in the hall, metal on metal, every few seconds.
+  if (h && now > beds.nextClank) { if (beds.nextClank) clank(now + 0.05); beds.nextClank = now + 4 + Math.random() * 9; }
+  if (!h) beds.nextClank = 0;
+}
+// A distant clank: a few inharmonic partials struck once, then fainter echoes off the walls.
+function clank(t0) {
+  const base = 160 + Math.random() * 140, v = 0.03 + Math.random() * 0.03;
+  for (const [delay, k] of [[0, 1], [0.38, 0.45], [0.81, 0.2], [1.3, 0.08]]) {
+    for (const r of [1, 1.58, 2.31]) tone('sine', base * r, v * k / r, 1.4, t0 + delay);
+    burst('bandpass', base * 3, v * k * 0.6, 0.18, t0 + delay);
+  }
 }
 
 // ---- one-shots ----
@@ -68,9 +84,11 @@ function tone(type, f, peak, d, t0 = ctx.currentTime, f1 = f) { const o = ctx.cr
 function burst(type, f, peak, d, t0 = ctx.currentTime, f1 = f) { const s = ctx.createBufferSource(); s.buffer = noise; const b = filt(type, f); b.frequency.setValueAtTime(f, t0); if (f1 !== f) b.frequency.exponentialRampToValueAtTime(f1, t0 + d); s.connect(b); env(b, peak, 0.005, d, t0); s.start(t0, Math.random()); s.stop(t0 + d + 0.05); }
 const SHOTS = {
   click: t => tone('sine', 880, 0.08, 0.05, t),
-  blip: t => { tone('sine', 520, 0.07, 0.07, t, 780); tone('sine', 780, 0.05, 0.08, t + 0.07, 1040); },
-  stamp: t => { burst('lowpass', 400, 0.6, 0.12, t); tone('sine', 95, 0.45, 0.18, t, 60); },
-  coins: t => { [1318, 1568, 2093, 1760, 2349].forEach((f, i) => tone('triangle', f, 0.12, 0.3, t + i * 0.07)); burst('highpass', 6000, 0.05, 0.4, t); },
+  blip: t => { tone('sine', 220, 0.08, 0.25, t, 196); },
+  // The Proctor's seal: a heavy thud and a dull ring.
+  stamp: t => { burst('lowpass', 300, 0.7, 0.16, t); tone('sine', 80, 0.5, 0.3, t, 48); tone('sine', 420, 0.05, 0.9, t + 0.02); tone('sine', 663, 0.03, 0.7, t + 0.02); },
+  // The sale: a low struck tone, a fifth above it, slow to fade.
+  coins: t => { tone('sine', 110, 0.22, 1.8, t); tone('sine', 165, 0.12, 1.6, t + 0.12); tone('triangle', 330, 0.04, 1.2, t + 0.12); burst('lowpass', 500, 0.25, 0.2, t); },
   clunk: t => { tone('sine', 70, 0.6, 0.35, t, 45); burst('lowpass', 600, 0.4, 0.25, t); },
   crash: t => { burst('lowpass', 2400, 0.9, 1.6, t, 90); tone('sawtooth', 50, 0.4, 1.2, t, 25); },
   chime: t => { tone('sine', 660, 0.1, 0.35, t); tone('sine', 990, 0.09, 0.5, t + 0.16); },

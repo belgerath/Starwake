@@ -1,6 +1,5 @@
 // The hangar's overlay and controls: where you are, credits and hold, what to do next, name tags over
-// Inspector Drab and Mama Gorrit, the cards you talk through (game.js), speech bubbles from the crowd, and
-// Undock. One finger (or the mouse) turns the view, two fingers or the wheel zoom, a tap talks to whoever
+// the Proctor and the Factor, the cards you talk through (game.js), lines from the crowd, and Undock. One finger (or the mouse) turns the view, two fingers or the wheel zoom, a tap talks to whoever
 // is under it. Loaded on demand with hangar.js, the first time you ask to dock.
 import {$, clamp} from '../util.js';
 import {G, talk, choose, holdText, goal} from '../game.js';
@@ -51,7 +50,7 @@ function wire() {
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
-// A tap: talk to Drab or Gorrit, hear a line from anyone else.
+// A tap: talk to the Proctor or the Factor, hear a line from anyone else.
 function tap(x, y) {
   const a = pick(x, y); if (!a) { closeCard(); return; }
   if (a.key) { snd('click'); focus(a.key); talkTo(a.key); return; }
