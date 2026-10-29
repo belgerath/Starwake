@@ -4,13 +4,13 @@ Where the game goes next: the world, what you do in it, and the order to build i
 
 ## The game in a paragraph
 
-You fly the Mudlark, a small, tired transport ship about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: Tumbledown, a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a hangar full of aliens, sell the cargo, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
+You fly the Mudlark, a small, tired transport ship about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: Tumbledown, a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a vast, dark hangar, sell the cargo to a broker who never met you, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
 
 ## Pillars
 
 1. **Real scale, real physics.** No speed limits, no fake drag, no shrunken planets. The ship starts weak, so orbits and thrust matter from the first minute.
 2. **A small ship in a big place.** 35 m of patched-up freighter next to a station kilometres across, a navy destroyer ten times your length, a planet underneath.
-3. **Weird and lived-in.** Aliens, odd stalls, flickering signs, misfits with jobs. Humour is welcome.
+3. **Dark and heavy.** Dune more than Star Wars: monumental halls in haze, one shaft of light, robed and masked figures, terse people with something to hide. No neon, no jokes in the writing.
 4. **Phone first.** Everything works with thumbs, in portrait and landscape, in 10 to 20 minute sessions. The hard parts (docking, aiming) have help.
 5. **Every phase ships.** Each phase ends with something new to play on the phone.
 
@@ -33,7 +33,7 @@ Changes:
 |---|---|
 | Veyra | 6,000 km radius, gravity 9.6 m/s², a ring from 4,200 to 8,100 km up. The colony: cities, a government, a navy |
 | Tal | 1,640 km radius, gravity 1.5 m/s², 42,000 km away. Mining outposts, quiet places to land |
-| Tumbledown | A huge station, a wheel 2.6 km across, in orbit around Veyra. Outside the colony's law: outcasts, misfits, aliens, traders |
+| Tumbledown | A huge station, a wheel 2.6 km across, in orbit around Veyra. Outside the colony's law: outcasts, pilgrims, brokers, smugglers |
 | The Halberd | The navy's 400 m destroyer, on patrol. Scans ships; contraband in your hold is a problem |
 | The Mudlark (your ship) | About 35 m, a hold with hidden compartments, two small guns |
 
@@ -54,16 +54,16 @@ Changes:
 2. **Approach.** The station is marked, with distance and closing speed. Fly toward it; the readouts say when you are slow enough.
 3. **Request docking.** Within about 10 km and under about 50 m/s relative to the station, a prompt asks "Request docking?". Tap yes.
 4. **Automatic docking.** Station control takes over: it matches speed, lines you up, the bay doors open, and the ship glides in (about a minute, and time warp can skip it). The doors close behind you. While docked the ship is fixed in the station's frame, the way a landed ship is fixed to Tal.
-5. **The hangar.** The view moves inside: your ship on its pad, aliens and droids going about their business.
-6. **Customs.** An officer wanders over: an easy check, a couple of choices on a card ("Anything to declare?"). At worst a small fee.
-7. **Trade.** Tap the trader and sell the contraband. Now you have money, and from here: jobs, upgrades, the bar, and undocking to go back out.
+5. **The hangar.** The view moves inside: your ship on its pad in a vast, dark hall, robed figures going about their business.
+6. **Customs.** A masked Proctor comes over: an easy check, a couple of choices on a card ("State your cargo."). At worst a small tithe.
+7. **Trade.** Find the Factor and sell the contraband. Now you have money, and from here: jobs, upgrades, the bar, and undocking to go back out.
 
 ## Inside the station: the hangar view
 
 - A 3D hangar with your ship parked in it. Drag to look around, pinch to zoom, tap to focus on a spot.
 - Tap a character or a place (customs officer, trader, mechanic, bar, job board) to get a card with choices, in the same style as the HUD.
-- Ambient life: aliens walking set paths and idling, droids, cargo lifts, signs and lights. Sound and music later.
-- **Aliens from free 3D asset packs** (confirmed). Public-domain (CC0) low-poly packs with walk and idle animations are available, for example from Quaternius and Kenney. Each pack's licence is checked and recorded in a credits file. Needs three.js's glTF loader (included in 0.128) and a download budget for phones (a few MB, loaded when you first dock).
+- Ambient life: robed figures walking set paths and standing in groups, guards, drones, a hauler and a crane. Sound throughout.
+- **Built in code** (revised): the first hangar used free cartoon models (Quaternius, Kenney); it read as cheesy, so the people are now robed and masked figures made from shapes, which suits the darker look and needs no download.
 - Walking around as a character could come later if the hangar view feels limiting.
 
 ## Your ship
@@ -129,21 +129,21 @@ What was built:
 
 ### Phase 3: The hangar (done)
 
-- The hangar scene inside the station: your ship on its pad, aliens from the asset packs, ambient life.
+- The hangar scene inside the station: your ship on its pad, people, ambient life.
 - Customs (easy) and a trader to sell the contraband; money.
 - First sounds.
 
 Done when: the first mission plays end to end.
 
-What was built:
-- Models: CC0 animated characters by Quaternius and props from Kenney's Space Kit, in `public/hangar/` (about 3 MB), every file listed with its source in `CREDITS.md`. The asset sites are blocked from the build environment, so they came through npm mirrors of the same packs.
-- The hangar (`src/hangar/`): its own scene, drawn instead of space once the doors close. A hall 112 by 92 m with "Bay 3" on the back wall and the doors you came in by; the Mudlark on its pad, gear down; the customs booth with a scanner gate; Mama Gorrit's stall ("We buy anything") and Spore and Sons next door; cargo with a moving lift, a crane, a rover, two parked craft, turrets by the doors.
-- The crowd: about twenty aliens, people and droids. They walk set loops (and stop now and then), chat, dance, fly circles overhead, and the drone inspects your hull. Tap any of them for a line. The loops are tested to stay clear of the ship, the stalls and the walls.
-- Customs: Inspector Drab, a frog-faced officer in a spacesuit, walks over from his booth when you arrive: "Anything to declare?" Every answer clears you; slipping him 20 credits tips you off that Mama Gorrit pays 10% more.
-- The trader: Mama Gorrit buys the 8 crates of glowmoss at 150 credits each; one haggle has a 60% chance of 15% more and never makes it worse. Selling ends the first run ("Jobs, upgrades and the bar open in the next update").
-- The overlay: where you are, credits, the hold and what to do next; name tags over Drab and Gorrit; cards you choose through; Customs, Market, Look around and Undock. Drag to look around, pinch or wheel to zoom.
-- Loading: the hangar's code and models start downloading when you ask to dock, so they are in by the time the doors close; the docked card shows progress, or says why it failed and offers Undock.
-- Sound (`src/sound.js`, Web Audio, no files): the main engine's rumble, the lift thrusters, thruster hiss, the bay doors, a docking chime and clunk, a landing clunk, the crash, a double beep at "Brake now", the hangar's murmur and hum, the customs stamp, coins. On after the first tap; Sound on and off on the pause card.
+What was built (first with cartoon CC0 models, then rebuilt darker at Craig's request, "something out of Dune"):
+- The hangar (`src/hangar/`): its own scene, drawn instead of space once the doors close, built in code with no files. A concrete hall 128 by 144 m and 84 m high in warm haze: buttresses up the walls with lamp niches washing them, a carved back wall with an arch into the station and BAY 3 cut into the stone, banners, the doors you came in by shut behind the ship with light at the seam. One shaft of light comes down from an opening in the roof onto the Mudlark on its pad (gear down, engines cold), with dust hanging in it and real shadows.
+- The checkpoint: a plinth and a monolith of a desk under a cold light, guards either side, a scanner arch on the walkway. The lower market: containers against the wall, the Factor's alcove under an awning with a rug and a lantern, sacks and jars. A container yard with a tracked hauler working round it, and a crane carrying a container overhead.
+- The people (`src/hangar/figures.js`): robed and hooded figures in dusty browns, some with faint blue eyes in the hood's shadow, tall pilgrims with staffs, merchants with lamps, armoured guards with long weapons at the checkpoint, the doors and the arch, black drones with red eyes. They walk set loops (stopping now and then), stand in twos and threes, nod and shake their heads. Tap one for a line. The loops are tested to stay clear of the ship, the stalls, the hauler and the walls.
+- Customs: Proctor Vey, masked, with a lit staff, comes down from the checkpoint when you arrive: "Vessel Mudlark. State your cargo." Every answer clears you; paying the 20-credit berth tithe gets you sent to the Factor, who then pays 10% more.
+- The broker: the Factor buys the 8 crates of ashroot at 150 credits each, "and we never met"; asking for more once has a 60% chance of 15% more and never makes it worse. Selling ends the first run.
+- The overlay: where you are, credits, the hold and what to do next; name tags over the Proctor and the Factor; cards you choose through; Customs, Market, Look around and Undock. Drag to look around, pinch or wheel to zoom.
+- Loading: the hangar's code is fetched and built when you ask to dock, so it is ready by the time the doors close; the docked card shows progress, or says why it failed and offers Undock.
+- Sound (`src/sound.js`, Web Audio, no files): the main engine's rumble, the lift thrusters, thruster hiss, the bay doors, a docking chime and clunk, a landing clunk, the crash, a double beep at "Brake now"; in the hangar a low drone, rumble and moving air with distant metal clanks echoing, the Proctor's seal, the sale's low struck tone. On after the first tap; Sound on and off on the pause card.
 - Saving now keeps credits, the hold and the first run's progress too.
 - Tests: the first run's rules (customs, the tip, haggling, selling, the save) and the walking paths.
 
@@ -174,10 +174,10 @@ The rest of the system, then other stars.
 | Docked state | 2 | Like the landed state on Tal: the pose is kept in the station's frame and follows its orbit at any time warp. The docking run is a short path in that frame. |
 | Station orbit | 2 | The station and the Halberd move under the same gravity as the ship, stepped with it, so a matched ship stays matched. |
 | Scenes | 3 (done) | The hangar is its own three.js scene, drawn instead of space; physics keeps running while you are inside. |
-| Asset loading | 3 (done) | glTF loader with meshopt, about 3 MB, fetched when you ask to dock, `CREDITS.md` for licences. |
+| Asset loading | 3 (done, then dropped) | The first hangar loaded about 3 MB of CC0 models; the darker one is built in code and loads none. Any later asset packs need a credits file for their licences. |
 | Saving | 2 | Versioned, in the browser's storage. Phase 2 saves the flight (ship, station, Halberd, docked or not); cargo, money and progress join it in phase 3. |
 | Sound | 3 (done) | Web Audio, synthesized; phone browsers only allow sound after a tap. |
-| Performance | always | 60 fps on the phone; the `?debug` line is the tool. A hangar full of animated aliens needs a budget too. |
+| Performance | always | 60 fps on the phone; the `?debug` line is the tool. The hangar's crowd and its one shadow-casting light need a budget too. |
 
 ## Decisions
 
@@ -188,17 +188,18 @@ Confirmed by Craig:
 3. **Docking:** get close, accept "Request docking?", and the station flies you into an opening bay.
 4. **Customs:** an easy check in the hangar; then the game opens up from there.
 5. **Station interior:** a hangar view with tap to interact, at first.
-6. **Aliens:** from free 3D asset packs.
+6. **People in the station:** robed and masked figures built in code (revised from cartoon aliens from free asset packs).
 7. **Landing on Tal:** belly-down on downward thrusters.
 8. **The Halberd:** stays as a navy destroyer that patrols.
 9. **Fuel:** generous (from the earlier plan).
 10. **Names:** the ship is the Mudlark, the station Tumbledown.
 11. **Docking offer:** within 10 km and under 50 m/s relative.
+12. **Tone:** dark, heavy science fiction, like Dune: terse and ominous writing. The hangar first; Tumbledown's outside gets the same treatment later.
 
 Still to confirm (recommendations):
 
-12. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
-13. **Ship and station models** built from shapes in code (like the Halberd), with asset packs used for the aliens and small props.
-14. **Combat** with aim assist (the guns lead the target; you choose when to fire).
+13. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
+14. **Ship and station models** built from shapes in code (like the Halberd).
+15. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
 Next: phase 4, upgrades and jobs.

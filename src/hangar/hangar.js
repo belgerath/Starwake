@@ -1,272 +1,371 @@
 // The hangar: bay 3 of Tumbledown seen from inside, its own scene drawn instead of space while docked.
-// The Mudlark stands on its pad; around it aliens walk set paths, stop, chat, dance and fly, droids work,
-// a cargo lift and a crane move. Inspector Drab (customs) walks over when you arrive; Mama Gorrit (trader)
-// keeps her stall. Metres, y up, the pad's centre at the origin, the ship's nose toward the back wall (−z).
-// Pure layout lives in paths.js; the models and their credits in models.js and CREDITS.md.
+// A vast concrete hall in haze: buttresses up the walls, a carved back wall with an archway into the
+// station, the doors you came in by shut behind the ship with light at the seam, banners, and one shaft of
+// light from an opening in the roof onto the Mudlark on its pad. Robed figures walk set paths and stand in
+// twos and threes, guards hold the checkpoint, the doors and the arch, drones circle, a hauler works the
+// container yard and a crane carries a container overhead. The Proctor (customs) walks over when you
+// arrive; the Factor (the broker) waits in an alcove in the lower market. Built in code, no files.
+// Metres, y up, the pad's centre at the origin, the ship's nose toward the back wall (−z).
 import * as THREE from 'three';
-import {RoomEnvironment} from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {renderer, app} from '../engine.js';
 import {SHIP} from '../config.js';
 import {lin, rng, clamp} from '../util.js';
 import {buildTransport} from '../ship/transport.js';
-import {panelTextures} from '../ship/destroyer.js';
-import {load, make} from './models.js';
-import {HALL, LOOPS, OFFICER, SPOTS, along, pathLength} from './paths.js';
+import {figure, guard, drone, animate, gesture as figGesture} from './figures.js';
+import {HALL, LOOPS, HAULER, OFFICER, SPOTS, along, pathLength} from './paths.js';
 
-const PEOPLE = ['astronaut', 'alien_big'];
-const CROWD = ['yeti', 'orc_brute', 'demon_blue', 'pirate', 'worker', 'mech', 'mushroom_imp', 'slime_green', 'slime_pink', 'slime_horned', 'crab', 'robot_walker', 'skeleton_crew', 'blob_alien', 'mushroom_king', 'robot_large', 'jelly_flyer', 'ghost', 'robot_flyer'];
-const PROPS = ['chest', 'crystal', 'tent', 'barrels', 'barrels_rail', 'machine_generator', 'machine_barrelLarge', 'machine_wireless', 'desk_computerScreen', 'desk_chair', 'structure_detailed', 'stairs', 'platform_large', 'craft_cargoA', 'craft_miner', 'rover', 'satelliteDish', 'gate_complex', 'turret_double'];
-export const MODELS = [...PEOPLE, ...CROWD, ...PROPS];
+const {x: HX, z: HZ, h: HY} = HALL;
+const FOG = 0x30261c;
 
 // Who is in the hangar and what they do. walk: a loop from paths.js (at = start fraction, v = m/s, rev = the
-// other way round); idle: a spot and a direction to face; dance; fly: a circle in the air. say: what they
-// tell you when tapped.
+// other way round); idle: a spot and a point to face; guard: a post; drone: a circle in the air
+// [x, z, radius, height, rad/s]. say: what they tell you when tapped.
 const CAST = [
-  {m: 'yeti', h: 2.6, walk: 'ring', at: 0.1, v: 1.0, say: 'The yeti hums a song about home. Home is very cold.'},
-  {m: 'orc_brute', h: 2.3, walk: 'market', at: 0, v: 1.1, say: 'Buying? Selling? Fighting? I do all three.'},
-  {m: 'demon_blue', h: 2.4, walk: 'cross', at: 0.3, v: 1.2, say: 'Don\'t stare. It\'s rude where I come from.'},
-  {m: 'pirate', h: 1.9, walk: 'cross', at: 0.72, v: 1.0, say: 'Space is just a bigger sea. The parrot disagrees.'},
-  {m: 'worker', h: 1.8, walk: 'cargo', at: 0.2, v: 1.2, say: 'Mind the lift. It bites.'},
-  {m: 'mech', h: 3.4, walk: 'cargo', at: 0.7, v: 0.9, say: 'The loader beeps politely and keeps on lifting.'},
-  {m: 'mushroom_imp', h: 1.0, walk: 'ring', at: 0.6, v: 0.8, rev: true, say: 'It squeaks and puffs out a small cloud of spores.'},
-  {m: 'slime_green', h: 0.9, walk: 'market', at: 0.5, v: 0.7, say: 'The slime grins at you. You decide not to shake hands.'},
-  {m: 'slime_pink', h: 0.8, walk: 'back', at: 0.2, v: 0.6, say: 'It wobbles at you. That might be a greeting.'},
-  {m: 'crab', h: 0.9, walk: 'back', at: 0.65, v: 0.9, rev: true, say: 'The crab clicks something that sounds like a price.'},
-  {m: 'robot_walker', h: 1.4, walk: 'ring', at: 0.35, v: 1.3, say: 'Bay 3 is clean. Bay 3 is very clean.'},
-  {m: 'skeleton_crew', h: 1.8, idle: [-24, 18], face: [-20, 22], emotes: ['yes', 'no'], say: 'I came here with a full crew. Long story.'},
-  {m: 'slime_horned', h: 1.0, idle: [-20, 22], face: [-24, 18], emotes: ['yes', 'no', 'jump'], say: 'Don\'t smile at Drab. Makes him suspicious.'},
-  {m: 'blob_alien', h: 1.0, dance: [27, 7], face: [10, 30], say: 'It dances to music only it can hear.'},
-  {m: 'mushroom_king', h: 2.4, idle: [37, 15], face: [20, 15], emotes: ['yes'], say: 'Spore and Sons. Fungus and futures. Mostly fungus.'},
-  {m: 'robot_large', h: 2.2, idle: [-27, 21], face: [0, 0], emotes: [], say: 'Its red eye follows you all the way across the deck.'},
-  {m: 'jelly_flyer', h: 1.4, fly: [33, -9, 10, 5.5, 0.22], say: 'It drifts past, humming softly.'},
-  {m: 'ghost', h: 1.5, fly: [-6, 28, 7, 4.5, -0.3], say: 'Nobody knows how I got on the manifest.'},
-  {m: 'robot_flyer', h: 1.1, fly: [0, 0, 10, 10.5, 0.35], say: 'The drone is scanning your hull. It seems impressed by the dents.'},
+  {walk: 'ring', at: 0.05, v: 1.1, say: 'Keep walking, offworlder.'},
+  {walk: 'ring', at: 0.42, v: 0.8, rev: true, look: 'pilgrim', h: 2.6, staff: true, say: 'We were pilgrims once. Now we are cargo.'},
+  {walk: 'ring', at: 0.74, v: 1.2, lamp: true, say: 'Your hull is scarred. Good. Clean ships draw eyes.'},
+  {walk: 'long', at: 0.0, v: 1.2, say: 'Three ships did not come back from Tal this cycle.'},
+  {walk: 'long', at: 0.24, v: 1.0, look: 'merchant', say: 'The Factor buys. The Factor does not forget.'},
+  {walk: 'long', at: 0.5, v: 1.3, staff: true, say: 'The Halberd scans everything now. Everything.'},
+  {walk: 'long', at: 0.76, v: 1.1, rev: true, say: 'Do not look at the guards.'},
+  {walk: 'market', at: 0.2, v: 0.7, look: 'merchant', say: 'Water costs more than blood on this deck.'},
+  {walk: 'market', at: 0.7, v: 0.9, lamp: true, say: 'Say nothing to the Proctor you cannot prove.'},
+  {walk: 'doors', at: 0.3, v: 1.0, say: 'The doors open for the station, not for you.'},
+  {walk: 'back', at: 0.5, v: 0.6, look: 'pilgrim', h: 2.5, staff: true, say: 'Beyond the arch is the station. Few come back the same.'},
+  {idle: [40, 36], face: [37, 39], say: 'We are not talking to you.'},
+  {idle: [37, 39], face: [40, 36], look: 'merchant', say: 'Move on.'},
+  {idle: [42.5, 39], face: [38.5, 37], h: 1.7, say: 'The ashroot crop failed on Tal. Prices will rise.'},
+  {idle: [-41, 31], face: [-38.5, 33.5], look: 'pilgrim', h: 2.6, staff: true, say: 'Silence is also an answer.'},
+  {idle: [-38.5, 33.5], face: [-41, 31], lamp: true, say: 'The lamp is for the dark. The dark is everywhere.'},
+  {idle: [49, 10], face: [30, 10], look: 'merchant', say: 'Salt, wire, water. No questions.'},
+  {idle: [49, -30], face: [30, -30], look: 'merchant', lamp: true, say: 'The Factor is busy. The Factor is always busy.'},
+  {guard: [-33, -15], face: [0, -15]}, {guard: [-33, 3], face: [0, 3]},
+  {guard: [-14, 66], face: [-14, 0]}, {guard: [14, 66], face: [14, 0]},
+  {guard: [-10, -67], face: [-10, 0]}, {guard: [10, -67], face: [10, 0]},
+  {drone: [0, 0, 11, 13, 0.3], say: 'The drone turns its red eye on you, then away.'},
+  {drone: [20, -20, 30, 30, -0.12], say: 'Far above, a drone records the deck.'},
+  {drone: [-28, 28, 20, 36, 0.1], say: 'Far above, a drone records the deck.'},
 ];
+const GUARD_SAY = 'The guard does not answer.';
 
-export const H = {scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(55, 1, 0.1, 600), built: false, agents: [], people: {}, picks: []};
-let ship = null, lift = null, trolley = null, rover = null, blink = [], t = 0;
+export const H = {scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(55, 1, 0.1, 700), built: false, agents: [], people: {}, picks: []};
+let ship = null, hauler = null, crane = null, shaft = null, dust = null, scan = null, blink = [], t = 0;
 const R = rng(31);
 
-// ---- building ----
-// Loads the models (onProgress(0..1)) and builds the hangar once. Later calls return at once.
+// Builds the hangar once (it needs the fonts for its engraving). Later calls return at once.
 export async function loadHangar(onProgress) {
-  if (H.built) { onProgress && onProgress(1); return; }
-  await Promise.all([load(MODELS, onProgress), document.fonts ? document.fonts.load('64px Michroma').catch(() => {}) : null]);
-  if (H.built) return;
-  build(); H.built = true;
+  if (!H.built) { if (document.fonts) await document.fonts.load('64px Michroma').catch(() => {}); if (!H.built) { build(); H.built = true; } }
+  onProgress && onProgress(1);
 }
 
-function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 4; return tx; }
-// A sign: lines of [text, size px, colour], glowing like neon unless paint is set. w×h metres.
-function sign(lines, w, h, {paint = false, px = 1024} = {}) {
-  const ph = Math.round(px * h / w);
-  const tx = canvasTex(px, ph, (g, W, Hh) => {
-    g.textAlign = 'center'; g.textBaseline = 'middle'; const total = lines.reduce((s, l) => s + l[1] * 1.25, 0); let y = (Hh - total) / 2;
-    for (const [text, size, col] of lines) {
-      g.font = `${size}px Michroma, "Arial Black", sans-serif`; y += size * 0.625;
-      if (!paint) { g.shadowColor = col; g.shadowBlur = size * 0.45; g.fillStyle = col; g.fillText(text, W / 2, y); g.shadowBlur = size * 0.15; }
-      g.fillStyle = paint ? col : '#fff8ee'; g.globalAlpha = paint ? 0.85 : 0.9; g.fillText(text, W / 2, y); g.globalAlpha = 1; y += size * 0.625;
-    }
-  });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({map: tx, transparent: true, depthWrite: false, toneMapped: paint}));
+// ---- textures, drawn once ----
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 4;
+  if (repeat) { tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(...repeat); }
+  return tx;
 }
-const shadowTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.6, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+const blotch = (g, r, n, w, h, rgb, a0, a1, s0, s1) => { for (let i = 0; i < n; i++) { const x = r() * w, y = r() * h, s = s0 + r() * (s1 - s0), gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, `rgba(${rgb},${a0 + r() * (a1 - a0)})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(x - s, y - s, 2 * s, 2 * s); } };
+// Board-marked concrete: grain, stains, the lines of the formwork, tie holes, streaks running down.
+function concrete(rep) {
+  return canvasTex(512, 512, (g, w, h) => {
+    const r = rng(11); g.fillStyle = '#8c857a'; g.fillRect(0, 0, w, h);
+    blotch(g, r, 60, w, h, '40,34,28', 0.05, 0.16, 20, 90); blotch(g, r, 30, w, h, '200,190,170', 0.03, 0.08, 20, 70);
+    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '20,18,16' : '230,220,200'},0.06)`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+    for (let y = 0; y < h; y += 128) { g.fillStyle = 'rgba(20,16,12,0.35)'; g.fillRect(0, y, w, 3); g.fillStyle = 'rgba(255,240,220,0.06)'; g.fillRect(0, y + 3, w, 2); }
+    g.fillStyle = 'rgba(15,12,10,0.55)'; for (let x = 32; x < w; x += 64) for (let y = 64; y < h; y += 128) { g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill(); }
+    for (let i = 0; i < 50; i++) { const x = r() * w, y = r() * h, l = 40 + r() * 200, gr = g.createLinearGradient(0, y, 0, y + l); gr.addColorStop(0, 'rgba(30,24,18,0.18)'); gr.addColorStop(1, 'rgba(30,24,18,0)'); g.fillStyle = gr; g.fillRect(x, y, 2 + r() * 5, l); }
+  }, rep);
+}
+// Stone slabs, 4 m, each a slightly different shade, with dark joints.
+const slabs = () => canvasTex(512, 512, (g, w, h) => {
+  const r = rng(5);
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const k = 0.85 + r() * 0.15; g.fillStyle = `rgb(${120 * k | 0},${110 * k | 0},${98 * k | 0})`; g.fillRect(i * 256, j * 256, 256, 256); }
+  blotch(g, r, 40, w, h, '30,24,18', 0.06, 0.18, 15, 70);
+  for (let i = 0; i < 3000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '20,16,12' : '220,210,190'},0.07)`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+  g.strokeStyle = 'rgba(12,10,8,0.85)'; g.lineWidth = 5; for (let i = 0; i <= 2; i++) { g.beginPath(); g.moveTo(i * 256, 0); g.lineTo(i * 256, h); g.stroke(); g.beginPath(); g.moveTo(0, i * 256); g.lineTo(w, i * 256); g.stroke(); }
+}, [2 * HX / 8, 2 * HZ / 8]);
+// Sand blown in over the floor: drifts along the walls and in long tongues, clear round the pad.
+const sand = () => canvasTex(1024, 1024, (g, w, h) => {
+  const r = rng(9);
+  for (let i = 0; i < 700; i++) {
+    const edge = r() < 0.6, x = edge ? (r() < 0.5 ? r() * 0.12 : 1 - r() * 0.12) * w : r() * w, y = r() * h;
+    const cx = (x / w - 0.5) * 2 * HX, cz = (y / h - 0.5) * 2 * HZ; if (Math.hypot(cx, cz) < 24) continue;
+    const s = 10 + r() * (edge ? 70 : 40), gr = g.createRadialGradient(x, y, 0, x, y, s);
+    gr.addColorStop(0, `rgba(176,140,96,${0.25 + r() * 0.35})`); gr.addColorStop(1, 'rgba(176,140,96,0)'); g.fillStyle = gr; g.save(); g.translate(x, y); g.scale(1, 0.35 + r() * 0.5); g.translate(-x, -y); g.fillRect(x - s, y - s, 2 * s, 2 * s); g.restore();
+  }
+});
+// Dark ribbed metal, for the doors and the containers.
+const ribbed = (rep, rust = false) => canvasTex(256, 256, (g, w, h) => {
+  const r = rng(rust ? 3 : 4); g.fillStyle = '#7d7a76'; g.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 32) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, 0, 6, h); g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x + 6, 0, 3, h); }
+  if (rust) blotch(g, r, 25, w, h, '120,60,30', 0.15, 0.35, 8, 40);
+  blotch(g, r, 20, w, h, '20,16,12', 0.1, 0.25, 10, 50);
+}, rep);
+// A banner: dark cloth with a pale geometric emblem.
+const bannerTex = (hex) => canvasTex(128, 512, (g, w, h) => {
+  g.fillStyle = hex; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(214,196,160,0.75)'; g.lineWidth = 4;
+  g.beginPath(); g.arc(64, 150, 34, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(64, 100); g.lineTo(64, 260); g.stroke();
+  g.beginPath(); g.moveTo(30, 230); g.lineTo(64, 260); g.lineTo(98, 230); g.stroke();
+  g.fillStyle = 'rgba(214,196,160,0.6)'; g.fillRect(16, 20, 96, 4); g.fillRect(16, h - 24, 96, 4);
+  for (let x = 0; x < w; x += 4) { g.fillStyle = `rgba(0,0,0,${0.08 + 0.08 * Math.sin(x * 0.3)})`; g.fillRect(x, 0, 2, h); }
+});
+// Carved letters: dark in the stone, a lit lower edge.
+const engraving = (text) => canvasTex(1024, 192, (g, w, h) => {
+  g.fillStyle = '#4e483f'; g.fillRect(0, 0, w, h); g.font = '120px Michroma, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(255,230,190,0.22)'; g.fillText(text, w / 2 + 3, h / 2 + 4); g.fillStyle = '#16120e'; g.fillText(text, w / 2, h / 2);
+});
+const dotTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+const shadowTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.6)'); gr.addColorStop(0.6, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
 const shadowMat = new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false});
-function blob(r) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * r, 2 * r), shadowMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.03; m.renderOrder = 1; return m; }
+function blob(r) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * r, 2 * r), shadowMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.04; m.renderOrder = 1; return m; }
+
+// The shaft of light: an open cone from the roof to the floor, brightest where it is seen face-on and near
+// the top, with faint streaks; added on top of whatever is behind it.
+const SHAFT_VERT = `#include <common>
+#include <logdepthbuf_pars_vertex>
+varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w;
+#include <logdepthbuf_vertex>
+}`;
+const SHAFT_FRAG = `#include <logdepthbuf_pars_fragment>
+uniform vec3 color; uniform float strength; uniform float time;
+varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+void main(){
+#include <logdepthbuf_fragment>
+  float f = abs(dot(normalize(vN), normalize(vV)));
+  float rays = 0.6 + 0.4 * sin(vUv.x * 56.5 + 2.0 * sin(vUv.x * 18.8 + time * 0.07));
+  float a = f * f * strength * rays * mix(0.3, 1.0, vUv.y);
+  gl_FragColor = vec4(color * a, 1.0);
+}`;
 
 function build() {
-  const S = H.scene; S.background = new THREE.Color(0x0b0d11);
-  const pm = new THREE.PMREMGenerator(renderer); S.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
-  const T = panelTextures();
-  const tile = (rx, ry) => { const map = T.map.clone(), rough = T.rough.clone(); for (const x of [map, rough]) { x.repeat.set(rx, ry); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.needsUpdate = true; } return {map, rough}; };
-  const std = (hex, tx, metal = 0.3, rough = 0.85) => new THREE.MeshStandardMaterial({color: lin(hex), map: tx ? tx.map : null, roughnessMap: tx ? tx.rough : null, metalness: metal, roughness: rough, envMapIntensity: 0.5});
-  const glow = hex => new THREE.MeshBasicMaterial({color: lin(hex), toneMapped: false});
-  const add = (geo, mat, x, y, z, ry = 0, parent = S) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; parent.add(m); return m; };
-  const put = (name, h, x, z, ry = 0, y = 0) => { const o = make(name, h); if (!o) return null; o.root.position.set(x, y, z); o.root.rotation.y = ry; S.add(o.root); return o; };
+  const S = H.scene, fogC = new THREE.Color(FOG).convertSRGBToLinear();
+  S.background = new THREE.Color(FOG); S.fog = new THREE.FogExp2(fogC.getHex(), 0.0068);
+  // Reflections for the ship's metal: a dark room with a bright opening above and a thin warm seam.
+  { const es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial({color: 0x0b0907, side: THREE.BackSide})));
+    const o = new THREE.Mesh(new THREE.CircleGeometry(12, 24), new THREE.MeshBasicMaterial({color: new THREE.Color(4, 3.6, 3), side: THREE.DoubleSide})); o.position.y = 49; o.rotation.x = Math.PI / 2; es.add(o);
+    const pm = new THREE.PMREMGenerator(renderer); S.environment = pm.fromScene(es, 0.02).texture; pm.dispose(); }
+  const std = (hex, map = null, metal = 0.1, rough = 0.95) => new THREE.MeshStandardMaterial({color: lin(hex), map, metalness: metal, roughness: rough, envMapIntensity: 0.4});
+  const glow = (hex, k = 1) => new THREE.MeshBasicMaterial({color: lin(hex).multiplyScalar(k), toneMapped: false});
+  const add = (geo, mat, x, y, z, ry = 0, parent = S, {cast = false, recv = true} = {}) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = cast; m.receiveShadow = recv; parent.add(m); return m; };
+  const many = (geo, mat, list, {cast = false} = {}) => { const m = new THREE.InstancedMesh(geo, mat, list.length), o = new THREE.Object3D(); list.forEach(([x, y, z, ry = 0, sx = 1, sy = 1, sz = 1], i) => { o.position.set(x, y, z); o.rotation.set(0, ry, 0); o.scale.set(sx, sy, sz); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }); m.castShadow = cast; m.receiveShadow = true; S.add(m); return m; };
 
-  // ---- the hall: floor, walls, pillars, lights, gantry, doors ----
-  const {x: HX, z: HZ, h: HY} = HALL;
-  const deck = canvasTex(512, 512, (g, w, h) => {
-    const r = rng(7); g.fillStyle = '#7a7d82'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 40; i++) { const x = r() * w, y = r() * h, s = 20 + r() * 90, gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, `rgba(40,38,34,${0.05 + r() * 0.1})`); gr.addColorStop(1, 'rgba(40,38,34,0)'); g.fillStyle = gr; g.fillRect(x - s, y - s, 2 * s, 2 * s); }
-    for (const [x, y, ww, hh] of [[0, 0, 512, 256], [0, 256, 256, 256], [256, 256, 256, 256]]) {
-      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(x + 4, y + 4, ww - 8, 3); g.fillStyle = 'rgba(0,0,0,0.35)'; g.strokeStyle = 'rgba(30,30,32,0.75)'; g.lineWidth = 4; g.strokeRect(x + 2, y + 2, ww - 4, hh - 4);
-      g.fillStyle = 'rgba(30,30,32,0.6)'; for (const [bx, by] of [[x + 14, y + 14], [x + ww - 14, y + 14], [x + 14, y + hh - 14], [x + ww - 14, y + hh - 14]]) { g.beginPath(); g.arc(bx, by, 4, 0, Math.PI * 2); g.fill(); }
-    }
-  });
-  deck.wrapS = deck.wrapT = THREE.RepeatWrapping; deck.repeat.set(2 * HX / 8, 2 * HZ / 8);
-  const floor = add(new THREE.PlaneGeometry(2 * HX, 2 * HZ), new THREE.MeshStandardMaterial({map: deck, color: lin(0x9a9ca0), metalness: 0.3, roughness: 0.75, envMapIntensity: 0.4}), 0, 0, 0); floor.rotation.x = -Math.PI / 2;
-  const wallM = std(0x6e737b, tile(22, 5)), ceilM = std(0x2c3036, tile(18, 14), 0.4, 0.9);
-  const shell = new THREE.Mesh(new THREE.BoxGeometry(2 * HX, HY, 2 * HZ), [wallM, wallM, ceilM, new THREE.MeshBasicMaterial({visible: false}), wallM, wallM].map(m => { m.side = THREE.BackSide; return m; }));
-  shell.position.y = HY / 2; S.add(shell);
-  const darkM = std(0x353a42, tile(1, 4), 0.5, 0.7);
-  const pillars = new THREE.InstancedMesh(new THREE.BoxGeometry(2.4, HY, 3), darkM, 14), m4 = new THREE.Matrix4(); let n = 0;
-  for (const x of [-HX + 1.2, HX - 1.2]) for (let z = -39; z <= 39; z += 13) { m4.makeTranslation(x, HY / 2, z); pillars.setMatrixAt(n++, m4); }
-  pillars.count = n; S.add(pillars);
-  const stripM = glow(0xe8f2ff);
-  for (const x of [-36, -12, 12, 36]) add(new THREE.BoxGeometry(1.4, 0.3, 2 * HZ - 10), stripM, x, HY - 0.2, 0);
-  const amberM = glow(0xffb14a);
-  for (const s of [-1, 1]) { add(new THREE.BoxGeometry(0.3, 0.25, 2 * HZ - 6), amberM, s * (HX - 0.2), 0.7, 0); add(new THREE.BoxGeometry(2 * HX - 6, 0.25, 0.3), amberM, 0, 0.7, s * (HZ - 0.2)); }
-  for (const z of [-18, 18]) add(new THREE.BoxGeometry(2 * HX, 1.6, 1.2), darkM, 0, HY - 5, z);
-  trolley = new THREE.Group(); trolley.position.set(0, HY - 5, -18); S.add(trolley);
-  add(new THREE.BoxGeometry(4, 2.2, 3), std(0xb08a3e, null, 0.4, 0.6), 0, -1.6, 0, 0, trolley);
-  // The doors you came in by, closed behind the ship, with red warning lights.
-  const doorTex = canvasTex(1024, 512, (g, w, h) => {
-    g.fillStyle = '#3a3e45'; g.fillRect(0, 0, w, h); g.fillStyle = '#2a2d32'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 4, h);
-    g.save(); g.beginPath(); g.rect(0, h * 0.82, w, h * 0.12); g.clip(); g.fillStyle = '#ffb14a'; g.fillRect(0, 0, w, h); g.fillStyle = '#1a1c20';
-    for (let x = -80; x < w + 80; x += 60) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 30, h); g.lineTo(x + 90, h * 0.8); g.lineTo(x + 60, h * 0.8); g.closePath(); g.fill(); } g.restore();
-  });
-  const doorM = new THREE.MeshStandardMaterial({map: doorTex, metalness: 0.4, roughness: 0.7, envMapIntensity: 0.4});
-  for (const s of [-1, 1]) add(new THREE.BoxGeometry(36, 22, 1), doorM, s * 18.2, 11, HZ - 0.6);
-  add(new THREE.BoxGeometry(76, 2, 1.6), std(0xffb14a, null, 0.2, 0.5), 0, 23, HZ - 0.6);
-  for (const x of [-26, 0, 26]) { const b = add(new THREE.SphereGeometry(0.6, 12, 8), glow(0xff3b30), x, 25, HZ - 1.2); blink.push(b); }
-  const bay = sign([['BAY 3', 220, '#d8d2c4']], 38, 12, {paint: true}); bay.position.set(0, 17, -HZ + 0.15); S.add(bay);
-  const welcome = sign([['TUMBLEDOWN', 90, '#ff8fb8'], ['BERTHS · TRADE · NO QUESTIONS ASKED', 34, '#9fd4ff']], 30, 6); welcome.position.set(0, 27, HZ - 1.4); welcome.rotation.y = Math.PI; S.add(welcome);
+  // ---- the hall: floor and sand, walls, buttresses with lamp niches, roof beams, the opening above ----
+  const floor = add(new THREE.PlaneGeometry(2 * HX, 2 * HZ), std(0x8a8072, slabs(), 0.05, 0.9), 0, 0, 0); floor.rotation.x = -Math.PI / 2;
+  const drift = add(new THREE.PlaneGeometry(2 * HX, 2 * HZ), new THREE.MeshStandardMaterial({map: sand(), transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2}), 0, 0.02, 0); drift.rotation.x = -Math.PI / 2;
+  const sideM = std(0x6b6258, concrete([2 * HZ / 24, HY / 24])), endM = std(0x6b6258, concrete([2 * HX / 24, HY / 24])), roofM = std(0x2a2520, concrete([6, 6]));
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(2 * HX, HY, 2 * HZ), [sideM, sideM, roofM, new THREE.MeshBasicMaterial({visible: false}), endM, endM].map(m => { m.side = THREE.BackSide; return m; }));
+  shell.position.y = HY / 2; shell.receiveShadow = true; S.add(shell);
+  const butM = std(0x766c60, concrete([1, HY / 12])), posts = [];
+  for (const s of [-1, 1]) for (let z = -63; z <= 63; z += 18) posts.push([s * (HX - 2.5), HY / 2, z]);
+  many(new THREE.BoxGeometry(5, HY, 6), butM, posts);
+  many(new THREE.BoxGeometry(0.2, 1.0, 0.5), glow(0xffa050, 0.55), posts.map(([x, , z]) => [x - Math.sign(x) * 2.6, 1.4, z]));
+  // Each lamp washes the buttress above it and the floor in front of it (painted on, no real lights).
+  const wash = (k) => new THREE.MeshBasicMaterial({map: dotTex, color: lin(0xff9a40).multiplyScalar(k), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending});
+  const up = new THREE.PlaneGeometry(9, 34).rotateY(Math.PI / 2);
+  many(up, wash(0.16), posts.map(([x, , z]) => [x - Math.sign(x) * 2.65, 15, z, x > 0 ? Math.PI : 0])).receiveShadow = false;
+  for (const x of [-20, 20]) add(new THREE.PlaneGeometry(14, 46), wash(0.12), x, 26, -HZ + 1.7);
+  const pool = wash(0.32);
+  const poolGeo = new THREE.PlaneGeometry(9, 9).rotateX(-Math.PI / 2); // lamp light on the floor, painted on
+  many(poolGeo, pool, posts.map(([x, , z]) => [x - Math.sign(x) * 5.5, 0.05, z])).receiveShadow = false;
+  many(new THREE.BoxGeometry(2 * HX, 4, 3), roofM, [-60, -36, -12, 12, 36, 60].map(z => [0, HY - 2, z]));
+  const oculus = add(new THREE.CircleGeometry(7, 40), glow(0xfff0d8, 2.2), 0, HY - 0.05, 0); oculus.rotation.x = Math.PI / 2;
+  const rim = add(new THREE.TorusGeometry(7.6, 0.9, 8, 40), std(0x1c1a17), 0, HY - 0.6, 0); rim.rotation.x = Math.PI / 2;
+  shaft = add(new THREE.CylinderGeometry(7, 22, HY, 48, 1, true), new THREE.ShaderMaterial({vertexShader: SHAFT_VERT, fragmentShader: SHAFT_FRAG, uniforms: {color: {value: lin(0xffe2b8)}, strength: {value: 0.15}, time: {value: 0}}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}), 0, HY / 2, 0);
+  shaft.renderOrder = 2;
 
-  // ---- floor paint: the pad, a stripe band by the doors ----
-  const paintM = new THREE.MeshStandardMaterial({color: lin(0xd89a3a), roughness: 0.9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2});
-  const ring = add(new THREE.RingGeometry(16.4, 17.4, 72), paintM, 0, 0.02, 0); ring.rotation.x = -Math.PI / 2;
-  for (const [w, d] of [[30, 0.8], [0.8, 30]]) { const l = add(new THREE.PlaneGeometry(w, d), paintM, 0, 0.02, 0); l.rotation.x = -Math.PI / 2; }
-  const stripeTex = canvasTex(1024, 64, (g, w, h) => { g.fillStyle = '#ffb14a'; g.fillRect(0, 0, w, h); g.fillStyle = '#1a1c20'; for (let x = -64; x < w + 64; x += 64) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 32, h); g.lineTo(x + 64, 0); g.lineTo(x + 32, 0); g.closePath(); g.fill(); } });
-  stripeTex.wrapS = THREE.RepeatWrapping; stripeTex.repeat.set(6, 1);
-  const band = add(new THREE.PlaneGeometry(2 * HX - 10, 2.2), new THREE.MeshStandardMaterial({map: stripeTex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2}), 0, 0.02, HZ - 9); band.rotation.x = -Math.PI / 2;
+  // ---- the doors you came in by (+z): two monolithic leaves, light leaking at the seam ----
+  const doorM = std(0x3d3a37, ribbed([6, 1]), 0.6, 0.6);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(46, 64, 3), doorM, s * 23.2, 32, HZ - 1.6);
+  add(new THREE.PlaneGeometry(0.5, 64), glow(0xff9a40, 1.5), 0, 32, HZ - 3.15).rotation.y = Math.PI;
+  add(new THREE.PlaneGeometry(10, 70), wash(0.2), 0, 32, HZ - 3.2).rotation.y = Math.PI;
+  add(new THREE.BoxGeometry(106, 10, 6), butM, 0, 69, HZ - 3); for (const s of [-1, 1]) add(new THREE.BoxGeometry(7, 74, 7), butM, s * 50, 37, HZ - 3.5);
+  for (const x of [-12, 12]) blink.push(add(new THREE.SphereGeometry(0.5, 10, 8), glow(0xff3b30, 1.4), x, 66, HZ - 6.5));
 
-  // ---- the Mudlark on its pad, gear down, engines cold ----
+  // ---- the back wall (−z): a carved grid, the arch into the station, BAY 3 cut into the stone ----
+  const relief = [];
+  for (let x = -50; x <= 50; x += 10) for (let y = 12; y <= 76; y += 10) if (!(Math.abs(x) < 16 && y < 56)) relief.push([x, y, -HZ + 0.8]);
+  many(new THREE.BoxGeometry(8.4, 8.4, 1.6), std(0x6f675c, concrete([1, 1])), relief);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(5, 40, 6), butM, s * 10.5, 20, -HZ + 3);
+  add(new THREE.BoxGeometry(26, 5, 6), butM, 0, 42.5, -HZ + 3);
+  add(new THREE.PlaneGeometry(16, 40), new THREE.MeshBasicMaterial({color: 0x030202}), 0, 20, -HZ + 0.3);
+  const deep = add(new THREE.PlaneGeometry(16, 6), new THREE.MeshBasicMaterial({map: dotTex, color: lin(0xff9a40).multiplyScalar(0.35), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}), 0, 2, -HZ + 0.4); deep.scale.set(1.6, 1, 1);
+  const bay = add(new THREE.PlaneGeometry(26, 4.9), new THREE.MeshStandardMaterial({map: engraving('BAY 3'), roughness: 0.95, metalness: 0}), 0, 49.5, -HZ + 0.25);
+  for (const [x, z, ry, hex] of [[-HX + 0.4, -15, Math.PI / 2, '#3a1612'], [-HX + 0.4, 3, Math.PI / 2, '#3a1612'], [-22, -HZ + 1.75, 0, '#2a2620'], [22, -HZ + 1.75, 0, '#2a2620']]) {
+    add(new THREE.PlaneGeometry(5, 30), new THREE.MeshStandardMaterial({map: bannerTex(hex), roughness: 1, side: THREE.DoubleSide}), x, 52, z, ry);
+  }
+
+  // ---- the Mudlark on its pad, gear down, engines cold; the pad inlaid in the floor ----
   ship = buildTransport(); ship.root.position.set(0, -SHIP.feet[0][1], 0); ship.setLegs(1);
-  for (const m of [...ship.flames, ...ship.glows]) m.visible = false; if (ship.eLight) ship.eLight.visible = false;
-  for (const m of ship.mats) m.envMapIntensity = 0.7;
-  S.add(ship.root); S.add(blob(15));
+  for (const m of [...ship.flames, ...ship.glows, ...ship.lift.flames, ...ship.lift.glows]) m.visible = false; if (ship.eLight) ship.eLight.visible = false;
+  for (const m of ship.engineGlow) m.color.setRGB(0.02, 0.035, 0.045); // engines cold
+  ship.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  for (const m of ship.mats) m.envMapIntensity = 0.6;
+  S.add(ship.root); S.add(blob(17));
+  const inlay = std(0x2b2926, null, 0.6, 0.45);
+  for (const [r0, r1] of [[19.4, 20.2], [5.6, 6.0]]) add(new THREE.RingGeometry(r0, r1, 96), inlay, 0, 0.03, 0).rotation.x = -Math.PI / 2;
+  add(new THREE.RingGeometry(20.7, 20.9, 96), glow(0x9a6a2a, 0.5), 0, 0.035, 0).rotation.x = -Math.PI / 2;
 
-  // ---- customs: a booth with a window and a scanner gate on the walkway ----
-  const [bx, bz] = SPOTS.booth;
-  add(new THREE.BoxGeometry(10, 4.4, 7), std(0x3b4a5c, tile(2, 1), 0.4, 0.7), bx, 2.2, bz);
-  add(new THREE.BoxGeometry(10.6, 0.5, 7.6), std(0x9fd4ff, null, 0.3, 0.5), bx, 4.6, bz);
-  add(new THREE.BoxGeometry(0.2, 1.6, 5.4), new THREE.MeshStandardMaterial({color: lin(0x9fd4ff), transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.2}), bx + 5.05, 2.6, bz);
-  put('desk_computerScreen', 1.2, bx + 3.6, bz, Math.PI / 2, 0); put('desk_chair', 1.0, bx + 2.2, bz + 1, -Math.PI / 2);
-  put('satelliteDish', 2.6, bx - 2.5, bz - 2, 0.6, 4.85); put('machine_wireless', 2, bx - 3, bz + 5, 0.3);
-  const customs = sign([['CUSTOMS', 120, '#9fd4ff']], 12, 3); customs.position.set(bx + 2, 7, bz + 3.9); customs.rotation.y = 0.5; S.add(customs);
-  const papers = sign([['Have your papers ready.', 40, '#c9d2dc'], ['Or don\'t.', 40, '#c9d2dc']], 4.2, 1.3, {paint: true}); papers.position.set(bx + 5.12, 1.2, bz - 2.2); papers.rotation.y = Math.PI / 2; S.add(papers);
-  put('gate_complex', 5.2, SPOTS.gate[0], SPOTS.gate[1], 0.13);
-  const cl = new THREE.PointLight(0x9fd4ff, 1.3, 36, 2); cl.position.set(bx + 7, 7, bz + 3); S.add(cl);
+  // ---- the checkpoint (−x): a plinth, a monolith of a desk, a cold light from above, a scanner arch ----
+  const [kx, kz] = SPOTS.checkpoint;
+  add(new THREE.BoxGeometry(9, 1, 14), butM, kx - 1.5, 0.5, kz);
+  add(new THREE.BoxGeometry(1.6, 2.4, 5), std(0x1e1d1f, null, 0.5, 0.6), kx + 1, 2.2, kz, 0, S, {cast: true});
+  add(new THREE.BoxGeometry(0.05, 0.08, 4.6), glow(0x9fd4ff, 0.7), kx + 1.82, 3.1, kz);
+  const ck = new THREE.SpotLight(0xc6d8ff, 2.4, 0, 0.2, 0.7); ck.position.set(kx + 3, 46, kz); ck.target.position.set(kx + 3, 0, kz); S.add(ck, ck.target);
+  const [ax, az] = SPOTS.arch, archM = std(0x2a2826, null, 0.5, 0.6);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(1.2, 8, 1.2), archM, ax + s * 3.6, 4, az, 0, S, {cast: true});
+  add(new THREE.BoxGeometry(8.4, 0.9, 1.2), archM, ax, 8.4, az);
+  scan = add(new THREE.BoxGeometry(7, 0.05, 0.08), glow(0xff5a3a, 1.2), ax, 4, az);
 
-  // ---- the market: Mama Gorrit's stall, and Spore and Sons ----
-  const [sx, sz] = SPOTS.stall;
-  put('tent', 4.6, sx + 6.5, sz, -Math.PI / 2);
-  add(new THREE.BoxGeometry(2.2, 1.1, 9), std(0x6b4a2e, null, 0.1, 0.8), sx - 2.6, 0.55, sz); add(new THREE.BoxGeometry(2.6, 0.15, 9.4), std(0xa8794a, null, 0.1, 0.7), sx - 2.6, 1.17, sz);
-  put('chest', 1.0, sx - 2.6, sz - 3, Math.PI / 2, 1.25); put('chest', 1.1, sx + 2, sz + 6, 0.4);
-  const crys = [put('crystal', 1.2, sx - 2.6, sz + 3, 0.3, 1.25), put('crystal', 2.2, sx + 2.5, sz - 6.5, 1.1), put('crystal', 1.7, sx + 4, sz + 5.5, 2)];
-  for (const c of crys) if (c) c.root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.emissive = lin(0x6a1fb0); o.material.emissiveIntensity = 0.6; } });
-  put('barrels', 1.6, sx + 2, sz - 6.5, 0.5);
-  const gorrit = sign([['GORRIT\'S', 120, '#ffb14a'], ['WE BUY ANYTHING', 52, '#ff8fb8']], 10, 3.4); gorrit.position.set(sx + 3, 7.4, sz); gorrit.rotation.y = -Math.PI / 2; S.add(gorrit);
-  const gl = new THREE.PointLight(0xffb14a, 1.0, 30, 2); gl.position.set(sx - 7, 9, sz); S.add(gl);
-  const [s2x, s2z] = SPOTS.stall2;
-  put('tent', 5, s2x + 2, s2z, -Math.PI / 2 + 0.3); put('crystal', 1.2, s2x - 2.5, s2z + 3, 0.5); put('barrels', 1.4, s2x - 1, s2z - 4, 1);
-  const spore = sign([['SPORE & SONS', 80, '#b9f06e'], ['FUNGUS AND FUTURES', 40, '#d8d2c4']], 8, 2.2); spore.position.set(s2x - 3, 6.4, s2z); spore.rotation.y = -Math.PI / 2 + 0.3; S.add(spore);
+  // ---- the lower market (+x): containers against the wall, the Factor's alcove under an awning ----
+  const contM = [std(0x4a3a2c, ribbed([3, 1], true), 0.4, 0.7), std(0x2e3236, ribbed([3, 1]), 0.5, 0.6), std(0x5a3a26, ribbed([3, 1], true), 0.4, 0.7)];
+  const box = (x, y, z, ry, mi, l = 11.5) => add(new THREE.BoxGeometry(5.4, 5, l), contM[mi], x, y, z, ry, S, {cast: true});
+  for (const [z, n, mi] of [[-34, 2, 0], [-22, 1, 2], [4, 2, 1], [16, 1, 2], [28, 1, 0]]) for (let k = 0; k < n; k++) box(55, 2.5 + 5 * k, z, 0, (mi + k) % 3);
+  const [fx, fz] = SPOTS.factor;
+  add(new THREE.BoxGeometry(1.4, 0.9, 3.4), std(0x6a5038, null, 0.1, 0.85), fx - 1.2, 0.45, fz, 0, S, {cast: true});
+  add(new THREE.CylinderGeometry(0.07, 0.09, 0.26, 8), glow(0xffa040, 1.2), fx - 1.2, 1.03, fz - 1);
+  add(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 8), std(0x1c1a17, null, 0.6, 0.5), fx - 1.2, 1.18, fz - 1);
+  const lantern = new THREE.PointLight(0xff9a40, 1.8, 20, 2); lantern.position.set(fx - 1.2, 1.6, fz - 1); S.add(lantern);
+  const clothM = std(0x5a3a22, null, 0, 1); clothM.side = THREE.DoubleSide;
+  add(new THREE.BoxGeometry(8, 0.08, 13), clothM, fx + 4.5, 5.2, fz).rotation.z = 0.22; // an awning off the container tops
+  const rug = add(new THREE.PlaneGeometry(6, 9), std(0x4a1a14, null, 0, 1), fx + 1, 0.04, fz); rug.rotation.x = -Math.PI / 2;
+  const sackM = std(0x7a6448, null, 0, 1), jarM = std(0x6a4a34, null, 0, 0.8);
+  for (const [x, z] of [[47, 13], [47.5, 7], [47, -27], [48, -33], [fx + 2.5, fz + 4]]) for (let i = 0; i < 4; i++) {
+    const sx = x + (R() - 0.5) * 3, sz = z + (R() - 0.5) * 3;
+    if (R() < 0.6) { const s = add(new THREE.SphereGeometry(0.5, 8, 6), sackM, sx, 0.35, sz, R() * 3, S, {cast: true}); s.scale.set(1, 0.7, 0.8); }
+    else add(new THREE.CylinderGeometry(0.25, 0.32, 0.9, 8), jarM, sx, 0.45, sz, 0, S, {cast: true});
+  }
 
-  // ---- cargo: barrels, machines, a scaffold with a lift; parked small craft; turrets by the doors ----
-  const [cx, cz] = SPOTS.cargo;
-  put('structure_detailed', 9, cx - 3, cz + 2, 0); put('stairs', 4.5, cx + 3.5, cz + 2, -Math.PI / 2);
-  lift = put('platform_large', 0.5, cx - 3, cz + 2); if (lift) { lift.root.scale.setScalar(1); const b = put('barrels_rail', 1.6, 0, 0); if (b) { S.remove(b.root); b.root.position.y = 0.5; lift.root.add(b.root); } }
-  put('machine_barrelLarge', 3.2, cx + 4, cz - 4, 0.4); put('machine_barrelLarge', 3.2, cx - 5, cz - 5, -0.3); put('machine_generator', 2.4, cx + 6, cz + 7, 1.2);
-  put('barrels', 1.6, cx - 7, cz + 6, 0.2); put('barrels', 1.6, cx + 1, cz - 7.5, 2.1);
-  put('craft_cargoA', 5.5, SPOTS.craftA[0], SPOTS.craftA[1], 0.6); put('craft_miner', 5, SPOTS.craftB[0], SPOTS.craftB[1], -2.4);
-  put('turret_double', 3.6, -48, 40, Math.PI); put('turret_double', 3.6, 48, 40, Math.PI);
-  rover = put('rover', 2.2, 0, 0); if (rover) rover.s = 30;
+  // ---- the container yard (back corner) and its hauler; a crane overhead ----
+  const [yx, yz] = SPOTS.yard;
+  for (const [dx, dz, n, mi] of [[-4, -6, 3, 0], [4, -6, 2, 1], [-4, 6, 1, 2], [4, 6, 2, 0]]) for (let k = 0; k < n; k++) box(yx + dx, 2.5 + 5 * k, yz + dz, 0, (mi + k) % 3, 10);
+  hauler = new THREE.Group(); S.add(hauler); hauler.s = 0;
+  const hm = std(0x2c2a27, ribbed([2, 1]), 0.6, 0.6);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(1.6, 1.6, 9.5), std(0x161514, null, 0.4, 0.8), s * 2.4, 0.8, 0, 0, hauler, {cast: true});
+  add(new THREE.BoxGeometry(5.6, 1.6, 9), hm, 0, 2.2, 0, 0, hauler, {cast: true});
+  add(new THREE.BoxGeometry(5, 2.6, 3), hm, 0, 4.3, 3.2, 0, hauler, {cast: true});
+  add(new THREE.BoxGeometry(4.2, 0.4, 0.05), glow(0x9fd4ff, 0.4), 0, 4.9, 4.72, 0, hauler);
+  add(new THREE.BoxGeometry(5.2, 3.6, 5.4), contM[2], 0, 4.8, -1.8, 0, hauler, {cast: true});
+  blink.push(add(new THREE.SphereGeometry(0.28, 8, 6), glow(0xffa030, 1.5), 0, 5.8, 3.2, 0, hauler));
+  crane = new THREE.Group(); S.add(crane); crane.position.y = 64;
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(2, 2, 2 * HZ - 8), roofM, s * (HX - 8), 64, 0);
+  const bridge = new THREE.Group(); crane.add(bridge); crane.bridge = bridge;
+  add(new THREE.BoxGeometry(2 * HX - 14, 3, 3), std(0x3a342c, null, 0.5, 0.7), 0, 0, 0, 0, bridge);
+  const trolley = new THREE.Group(); bridge.add(trolley); crane.trolley = trolley;
+  add(new THREE.BoxGeometry(5, 2.4, 4), std(0x3a342c, null, 0.5, 0.7), 0, -2, 0, 0, trolley);
+  for (const [cx, cz] of [[-1.6, -1.2], [1.6, -1.2], [-1.6, 1.2], [1.6, 1.2]]) add(new THREE.CylinderGeometry(0.06, 0.06, 15, 4), std(0x111111), cx, -10.7, cz, 0, trolley);
+  add(new THREE.BoxGeometry(5.4, 5, 12), contM[0], 0, -20.7, 0, Math.PI / 2, trolley, {cast: true});
+  blink.push(add(new THREE.SphereGeometry(0.3, 8, 6), glow(0xff3b30, 1.4), 0, -23.4, 0, 0, trolley));
 
-  // ---- light ----
-  S.add(new THREE.HemisphereLight(lin(0xbfd2ee), lin(0x4a4038), 0.75));
-  const key = new THREE.DirectionalLight(0xfff1dc, 0.7); key.position.set(20, 40, 25); S.add(key);
-  const pad = new THREE.PointLight(0xffe2bf, 1.0, 50, 2); pad.position.set(0, 24, 4); S.add(pad);
+  // ---- dust hanging in the light ----
+  const N = 1400, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const inShaft = i < 1000, y = R() * (inShaft ? HY - 4 : 40), rr = inShaft ? (7 + 15 * (1 - y / HY)) * Math.sqrt(R()) : 20 + R() * 40, a = R() * Math.PI * 2;
+    pos.set([Math.cos(a) * rr, y, Math.sin(a) * rr], i * 3); const k = inShaft ? 0.55 + 0.45 * R() : 0.12; col.set([k, k * 0.9, k * 0.75], i * 3);
+  }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); dg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  dust = new THREE.Points(dg, new THREE.PointsMaterial({size: 0.16, map: dotTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}));
+  dust.frustumCulled = false; S.add(dust);
+
+  // ---- light: little from anywhere but the opening above ----
+  S.add(new THREE.HemisphereLight(lin(0xa08a6a), lin(0x2a2118), 1.0));
+  const sun = new THREE.SpotLight(0xffe8c8, 3.4, 0, 0.36, 0.55); sun.position.set(0, HY - 1, 0); sun.target.position.set(0, 0, 0);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.near = 30; sun.shadow.camera.far = HY + 5; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+  S.add(sun, sun.target);
+  const seam = new THREE.PointLight(0xff8a30, 0.9, 40, 2); seam.position.set(0, 10, HZ - 6); S.add(seam);
 
   // ---- people ----
   for (const c of CAST) addAgent(c);
-  H.people.customs = addAgent({m: 'astronaut', h: 1.9, hide: ['pistol'], idle: OFFICER.home, face: [0, -11], key: 'customs'});
-  H.people.trader = addAgent({m: 'alien_big', h: 2.9, idle: [SPOTS.stall[0], SPOTS.stall[1]], face: [0, SPOTS.stall[1]], key: 'trader'});
+  H.people.customs = addAgent({look: 'proctor', h: 2.15, staff: true, mask: true, idle: OFFICER.home, face: [0, OFFICER.home[1]], key: 'customs'});
+  H.people.trader = addAgent({look: 'factor', h: 1.95, hunch: 0.16, idle: [fx + 1.2, fz], face: [0, fz], key: 'trader'});
   resize();
 }
 
 // ---- people ----
-const turnTo = (a, x, z, dt) => { const want = Math.atan2(x, z), r = a.o.root.rotation; let d = want - r.y; d = Math.atan2(Math.sin(d), Math.cos(d)); r.y += d * Math.min(1, dt * 6); };
+const turnTo = (a, x, z, dt) => { const want = Math.atan2(x, z), r = a.f.root.rotation; let d = want - r.y; d = Math.atan2(Math.sin(d), Math.cos(d)); r.y += d * Math.min(1, dt * 5); };
 function addAgent(c) {
-  const o = make(c.m, c.h, {hide: c.hide || []}); if (!o) return null;
-  const a = {c, o, key: c.key || null, say: c.say || null, s: 0, dir: c.rev ? -1 : 1, mode: 'idle', timer: 3 + R() * 20, shadow: blob(Math.max(0.5, c.h * 0.32))};
-  H.scene.add(o.root);
-  if (c.fly) { H.scene.add(a.shadow); a.ang = R() * Math.PI * 2; o.play('flying_idle') || o.play('idle'); }
-  else o.root.add(a.shadow);
-  if (c.walk) { a.path = LOOPS[c.walk]; a.s = (c.at || 0) * pathLength(a.path); a.mode = 'walk'; walkAnim(a); }
-  if (c.idle || c.dance) { const p = c.idle || c.dance; o.root.position.set(p[0], 0, p[1]); if (c.face) o.root.rotation.y = Math.atan2(c.face[0] - p[0], c.face[1] - p[1]); }
-  if (c.dance) o.play('dance');
-  // An invisible upright cylinder to tap.
-  const pick = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.7, c.h * 0.35), Math.max(0.7, c.h * 0.35), c.h * 1.1, 8), new THREE.MeshBasicMaterial({visible: false}));
-  pick.position.y = c.h * 0.55; pick.userData.agent = a; o.root.add(pick); H.picks.push(pick);
+  const f = c.drone ? drone() : c.guard ? guard({seed: R()}) : figure({look: c.look || 'local', h: c.h || 1.75 + R() * 0.3, seed: R(), staff: c.staff, lamp: c.lamp, mask: c.mask, hunch: c.hunch});
+  const h = f.h || 1.8, a = {c: {...c, h}, f, key: c.key || null, say: c.say || (c.guard ? GUARD_SAY : null), s: 0, dir: c.rev ? -1 : 1, mode: 'idle', timer: 3 + R() * 20, shadow: blob(c.drone ? 0.9 : 0.55)};
+  H.scene.add(f.root);
+  if (c.drone) { H.scene.add(a.shadow); a.ang = R() * Math.PI * 2; a.mode = 'fly'; }
+  else f.root.add(a.shadow);
+  if (c.walk) { a.path = LOOPS[c.walk]; a.s = (c.at || 0) * pathLength(a.path); a.mode = 'walk'; }
+  const p = c.idle || c.guard; if (p) { f.root.position.set(p[0], 0, p[1]); if (c.face) f.root.rotation.y = Math.atan2(c.face[0] - p[0], c.face[1] - p[1]); }
+  if (c.guard) a.mode = 'post';
+  // An invisible shape to tap.
+  const pick = new THREE.Mesh(c.drone ? new THREE.SphereGeometry(1.2, 8, 6) : new THREE.CylinderGeometry(0.7, 0.7, h * 1.1, 8), new THREE.MeshBasicMaterial({visible: false}));
+  if (!c.drone) pick.position.y = h * 0.55; pick.userData.agent = a; f.root.add(pick); H.picks.push(pick);
   H.agents.push(a); return a;
 }
-function walkAnim(a) { a.o.play('walk', {speed: clamp(a.c.v / (0.6 * a.c.h), 0.6, 1.8)}); }
 
-// Inspector Drab walks to the Mudlark and calls arrived() there, or walks back to the booth.
-let officerDone = null; const OFFICER_V = 1.7;
+// The Proctor walks to the Mudlark and calls arrived() there, or walks back to the checkpoint.
+let officerDone = null; const OFFICER_V = 1.5;
 export function officerCome(arrived) {
   const a = H.people.customs; if (!a) { arrived && arrived(); return; }
-  a.mode = 'route'; a.path = OFFICER.route; a.s = 0; a.dir = 1; officerDone = arrived; walkAnim({...a, c: {...a.c, v: OFFICER_V}});
+  a.mode = 'route'; a.path = OFFICER.route; a.s = 0; a.dir = 1; officerDone = arrived;
 }
 export function officerLeave() {
   const a = H.people.customs; if (!a) return;
-  const out = a.mode === 'route' ? a.dir > 0 : !!a.face; if (!out) return; // already home, or on the way back
+  const out = a.mode === 'route' ? a.dir > 0 : !!a.face; if (!out) return; // already back, or on the way
   if (a.mode !== 'route') a.s = pathLength(OFFICER.route, false);
-  a.mode = 'route'; a.path = OFFICER.route; a.dir = -1; a.face = null; officerDone = null; walkAnim({...a, c: {...a.c, v: OFFICER_V}});
+  a.mode = 'route'; a.path = OFFICER.route; a.dir = -1; a.face = null; officerDone = null;
 }
 export function officerHome() {
   const a = H.people.customs; if (!a) return;
-  a.mode = 'idle'; a.face = null; officerDone = null; a.o.root.position.set(OFFICER.home[0], 0, OFFICER.home[1]); a.o.root.rotation.y = Math.atan2(0 - OFFICER.home[0], -11 - OFFICER.home[1]); a.o.play('idle');
+  a.mode = 'idle'; a.face = null; officerDone = null; a.f.root.position.set(OFFICER.home[0], 0, OFFICER.home[1]); a.f.root.rotation.y = Math.PI / 2;
 }
-// One gesture, then back to idling: 'wave', 'yes', 'no'.
-export function gesture(key, name) { const a = H.people[key]; if (a && a.o.play(name, {once: true})) { a.mode = 'emote'; a.timer = 2.2; } }
+// A gesture from the Proctor or the Factor: 'yes' (a nod), 'no' (a shake of the head), 'wave' (a raised arm).
+export function gesture(key, name) { const a = H.people[key]; if (a) figGesture(a.f, name === 'wave' ? 'raise' : name); }
 
 const P = {x: 0, z: 0, dx: 0, dz: 1};
 function stepAgent(a, dt) {
-  const c = a.c, r = a.o.root;
+  const c = a.c, r = a.f.root;
   if (a.mode === 'walk') {
-    a.s += a.dir * c.v * dt; along(a.path, a.s, true, P); r.position.set(P.x, 0, P.z); turnTo(a, a.dir * P.dx, a.dir * P.dz, dt);
-    if ((a.timer -= dt) < 0) { a.mode = 'pause'; a.timer = 2 + R() * 4; a.o.play(R() < 0.25 ? 'wave' : 'idle', {once: false}) || a.o.play('idle'); }
+    a.s += a.dir * c.v * dt; along(a.path, a.s, true, P); r.position.set(P.x, 0, P.z); turnTo(a, a.dir * P.dx, a.dir * P.dz, dt); animate(a.f, dt, c.v);
+    if ((a.timer -= dt) < 0) { a.mode = 'pause'; a.timer = 3 + R() * 5; if (R() < 0.3) figGesture(a.f, R() < 0.5 ? 'yes' : 'no'); }
   } else if (a.mode === 'pause') {
-    if ((a.timer -= dt) < 0) { a.mode = 'walk'; a.timer = 12 + R() * 30; walkAnim(a); }
+    animate(a.f, dt, 0); if ((a.timer -= dt) < 0) { a.mode = 'walk'; a.timer = 15 + R() * 35; }
   } else if (a.mode === 'route') {
-    const L = pathLength(a.path, false); a.s = clamp(a.s + a.dir * OFFICER_V * dt, 0, L); along(a.path, a.s, false, P); r.position.set(P.x, 0, P.z); turnTo(a, a.dir * P.dx, a.dir * P.dz, dt);
+    const L = pathLength(a.path, false); a.s = clamp(a.s + a.dir * OFFICER_V * dt, 0, L); along(a.path, a.s, false, P); r.position.set(P.x, 0, P.z); turnTo(a, a.dir * P.dx, a.dir * P.dz, dt); animate(a.f, dt, OFFICER_V);
     if ((a.dir > 0 && a.s >= L) || (a.dir < 0 && a.s <= 0)) {
-      a.mode = 'idle'; a.timer = 6; a.o.play('idle');
-      if (a.dir > 0) { a.face = H.cam.position; const done = officerDone; officerDone = null; done && done(); } else a.face = null;
+      a.mode = 'idle'; a.timer = 8;
+      if (a.dir > 0) { a.face = H.cam.position; const done = officerDone; officerDone = null; done && done(); } else { a.face = null; r.rotation.y = Math.PI / 2; }
     }
-  } else if (c.fly) {
-    const [x, z, rad, y, w] = c.fly; a.ang += w * dt; const s = Math.sign(w);
-    r.position.set(x + rad * Math.cos(a.ang), y + 0.35 * Math.sin(t * 1.3 + x), z + rad * Math.sin(a.ang)); turnTo(a, -s * Math.sin(a.ang), s * Math.cos(a.ang), dt);
-    a.shadow.position.set(r.position.x, 0.03, r.position.z);
-  } else if (a.mode === 'emote') {
-    if ((a.timer -= dt) < 0) { a.mode = 'idle'; a.timer = 6 + R() * 10; a.o.play('idle'); }
-  } else if (a.mode === 'idle') {
+  } else if (a.mode === 'fly') {
+    const [x, z, rad, y, w] = c.drone; a.ang += w * dt; const s = Math.sign(w);
+    r.position.set(x + rad * Math.cos(a.ang), y + 0.4 * Math.sin(t * 1.1 + x), z + rad * Math.sin(a.ang)); turnTo(a, -s * Math.sin(a.ang), s * Math.cos(a.ang), dt);
+    a.shadow.position.set(r.position.x, 0.04, r.position.z); a.f.eye.visible = (t + x) % 3 > 0.15;
+  } else {
     if (a.face) turnTo(a, a.face.x - r.position.x, a.face.z - r.position.z, dt);
-    if (c.emotes && c.emotes.length && (a.timer -= dt) < 0) { const e = c.emotes[Math.floor(R() * c.emotes.length)]; if (a.o.play(e, {once: true})) { a.mode = 'emote'; a.timer = 2.4; } else a.timer = 8; }
+    animate(a.f, dt, 0);
+    if (a.mode === 'idle' && !a.key && (a.timer -= dt) < 0) { figGesture(a.f, R() < 0.5 ? 'yes' : 'no'); a.timer = 8 + R() * 14; }
   }
-  if (a.o.mixer) a.o.mixer.update(dt);
 }
 
 // ---- camera: orbit a target; drag to turn, pinch or wheel to zoom, focus() glides to a person ----
-const V = {yaw: 0.3, pitch: 0.26, dist: 40, target: new THREE.Vector3(0, 3, 2)};
+const V = {yaw: 0.29, pitch: -0.1, dist: 92, target: new THREE.Vector3(-4, 16, -30)};
 const goal = {on: false, yaw: 0, pitch: 0, dist: 0, target: new THREE.Vector3()};
-export function defaultView(snap = false) { const tall = H.cam.aspect < 1; Object.assign(goal, {on: true, yaw: 0.3, pitch: tall ? 0.42 : 0.26, dist: tall ? 50 : 40}); goal.target.set(0, tall ? 1 : 3, 2); if (snap) snapView(); }
-export function settle() { snapView(); } // jumps to where the camera is gliding (for headless checks)
+// Low by the doors, looking up past the Mudlark at the back wall; a tall screen stands further back and higher.
+export function defaultView(snap = false) {
+  const tall = H.cam.aspect < 1;
+  Object.assign(goal, {on: true, yaw: tall ? 0.25 : 0.29, pitch: tall ? -0.05 : -0.1, dist: tall ? 86 : 92}); goal.target.set(tall ? 0 : -4, tall ? 20 : 16, tall ? -20 : -30);
+  if (snap) snapView();
+}
 function snapView() { if (goal.on) { V.yaw = goal.yaw; V.pitch = goal.pitch; V.dist = goal.dist; V.target.copy(goal.target); goal.on = false; } }
-// Looks at someone a few metres away: Gorrit from in front of her stall, Drab from beyond him with the
-// Mudlark behind. The person sits beside the card (left of it in landscape, above it in portrait).
+export function settle() { snapView(); } // jumps to where the camera is gliding (for headless checks)
+// Looks at someone a few metres away: the Factor from in front of the alcove, the Proctor from beyond, with
+// the Mudlark behind. The person sits beside the card (left of it in landscape, above it in portrait).
+const right = new THREE.Vector3();
 export function focus(key) {
-  const a = H.people[key]; if (!a) return; const p = a.o.root.position;
-  const yaw = key === 'customs' ? Math.atan2(p.x, p.z) : a.o.root.rotation.y;
-  Object.assign(goal, {on: true, yaw, pitch: key === 'trader' ? 0.24 : 0.17, dist: (key === 'trader' ? 5.5 : 6.5) + a.c.h}); goal.target.set(p.x, a.c.h * 0.6, p.z);
+  const a = H.people[key]; if (!a) return; const p = a.f.root.position;
+  const yaw = key === 'customs' ? Math.atan2(p.x, p.z) : a.f.root.rotation.y;
+  Object.assign(goal, {on: true, yaw, pitch: key === 'trader' ? 0.3 : 0.1, dist: (key === 'trader' ? 6.5 : 6) + a.c.h}); goal.target.set(p.x, a.c.h * 0.62, p.z);
   if (app.clientWidth > app.clientHeight) goal.target.add(right.set(Math.cos(yaw), 0, -Math.sin(yaw)).multiplyScalar(goal.dist * 0.3));
   else goal.target.y -= goal.dist * 0.2;
 }
-const right = new THREE.Vector3();
-export function orbit(dx, dy) { goal.on = false; V.yaw -= dx * 0.006; V.pitch = clamp(V.pitch + dy * 0.004, 0.04, 1.2); }
-export function zoom(f) { goal.on = false; V.dist = clamp(V.dist * f, 6, 70); }
+export function orbit(dx, dy) { goal.on = false; V.yaw -= dx * 0.006; V.pitch = clamp(V.pitch + dy * 0.004, -0.4, 1.2); }
+export function zoom(f) { goal.on = false; V.dist = clamp(V.dist * f, 6, 110); }
 const ang = (a, b, k) => { let d = b - a; d = Math.atan2(Math.sin(d), Math.cos(d)); return a + d * k; };
 function updateCamera(dt) {
   if (goal.on) {
@@ -275,8 +374,8 @@ function updateCamera(dt) {
   }
   const cp = Math.cos(V.pitch), p = H.cam.position;
   p.set(V.target.x + V.dist * Math.sin(V.yaw) * cp, V.target.y + V.dist * Math.sin(V.pitch), V.target.z + V.dist * Math.cos(V.yaw) * cp);
-  p.x = clamp(p.x, -HALL.x + 3, HALL.x - 3); p.z = clamp(p.z, -HALL.z + 3, HALL.z - 3); p.y = clamp(p.y, 1.2, HALL.h - 3);
-  // Not inside the Mudlark: push out from its hull, a flattened sphere around the pad.
+  p.x = clamp(p.x, -HX + 6, HX - 6); p.z = clamp(p.z, -HZ + 4, HZ - 4); p.y = clamp(p.y, 1.5, HY - 8);
+  // Not inside the Mudlark: push out from its hull, a flattened sphere round the pad.
   const sx = p.x, sy = (p.y - 6) * 2.2, sz = p.z, d = Math.hypot(sx, sy, sz); if (d < 16) { const k = 16 / Math.max(d, 1e-3); p.x = sx * k; p.y = 6 + sy * k / 2.2; p.z = sz * k; }
   H.cam.lookAt(V.target);
 }
@@ -292,7 +391,7 @@ export function pick(x, y) {
 // Where an agent's head is on screen, in pixels relative to the app; null when behind the camera.
 const sp = new THREE.Vector3();
 export function screenOf(a, out) {
-  a.o.root.getWorldPosition(sp); sp.y += a.c.h * 1.04; sp.project(H.cam);
+  a.f.root.getWorldPosition(sp); sp.y += a.c.drone ? 1 : a.c.h * 1.05; sp.project(H.cam);
   if (sp.z > 1) return null; out.x = (sp.x + 1) / 2 * app.clientWidth; out.y = (1 - sp.y) / 2 * app.clientHeight; return out;
 }
 
@@ -301,11 +400,13 @@ export function resize() { H.cam.aspect = app.clientWidth / Math.max(1, app.clie
 export function updateHangar(dt) {
   t += dt;
   for (const a of H.agents) stepAgent(a, dt);
-  if (lift) lift.root.position.y = 3.6 - 3.4 * Math.cos(t * 0.3);
-  if (trolley) trolley.position.x = 38 * Math.sin(t * 0.05);
-  if (rover) { rover.s += 2.2 * dt; along(LOOPS.cargo, -rover.s, true, P); rover.root.position.set(P.x + 3.5 * -P.dz, 0, P.z + 3.5 * P.dx); rover.root.rotation.y = Math.atan2(-P.dx, -P.dz); }
-  const on = (t % 1.6) < 0.5; for (const b of blink) b.visible = on;
-  if (ship) { ship.strobe.visible = (t % 1.6) < 0.12; ship.dish.rotation.y += dt * 0.8; }
+  if (hauler) { hauler.s += 2.4 * dt; along(HAULER, hauler.s, true, P); hauler.position.set(P.x, 0, P.z); hauler.rotation.y = Math.atan2(P.dx, P.dz); }
+  if (crane) { crane.bridge.position.z = 36 * Math.sin(t * 0.035); crane.trolley.position.x = 22 * Math.sin(t * 0.05 + 1); }
+  if (scan) scan.position.y = 4 + 3.4 * Math.sin(t * 1.3);
+  if (shaft) shaft.material.uniforms.time.value = t;
+  if (dust) { const p = dust.geometry.attributes.position, a = p.array; for (let i = 0; i < p.count; i++) { let y = a[i * 3 + 1] - dt * 0.05; if (y < 0) y += i < 1000 ? HY - 4 : 40; a[i * 3 + 1] = y; a[i * 3] += Math.sin(t * 0.3 + i) * dt * 0.04; } p.needsUpdate = true; }
+  const on = (t % 1.8) < 0.5; for (const b of blink) b.visible = on;
+  if (ship) { ship.strobe.visible = (t % 1.6) < 0.12; ship.dish.rotation.y += dt * 0.3; }
   if (app.clientWidth / Math.max(1, app.clientHeight) !== H.cam.aspect) resize();
   updateCamera(dt);
 }
