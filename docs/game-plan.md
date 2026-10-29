@@ -155,11 +155,24 @@ After the hangar, the rest of what you see was brought into the same dark look (
 - Tumbledown (`src/station.js`), same shape rebuilt brutalist, so docking and collisions are unchanged: an octagonal concrete hub with collars, fins, monolithic blocks and slit windows, a spire forward; a concrete wheel ribbed like a spine with habitation blocks and slit windows; dark radiator slabs instead of solar wings; the neon sign and painted shacks gone.
 - Bay 3 seen from space is now the hangar's hall: the same concrete, buttresses and lamp niches, banners, BAY 3 cut into the back wall, and the shaft of light on the pad (shared textures and shader in `src/textures.js`). It is unlit like the hangar, with painted-on light and haze, so the docking run leads straight into what the hangar shows. (The old bay also hid its back half behind a solid collar of the hub; the collars are open rings now.)
 
-### Phase 4: Upgrades and jobs
+### Phase 4: Upgrades and jobs (done)
 
 - A mechanic with upgrades (engine, thrusters, guns, hold, tanks, hull).
 - Jobs from the job board and the bar: deliveries to Tal and the ring, pickups, a first hidden drop.
 - Cargo prices and fuel.
+
+Done when: take a job at Tumbledown, fly it to Tal, land at the outpost, get paid, fly back and spend it.
+
+What was built (Craig chose deliveries to Tal outposts first, the flight computer flying the trips, and Tal moved into the station's orbit plane):
+- One orbit plane: Tal now orbits in the same plane as Tumbledown, the Halberd and the start orbit (it was 12° off), so trips need no plane change. Tal is tidally locked, so its equator lies in that plane too.
+- Fuel (`physics.js`): counted as the speed change it buys, 20 km/s of it in the starting tanks; thrust spends it, coasting is free, the engines stop when it runs out. A fuel row on the HUD.
+- The flight computer's courses (`src/course.js`), from the Course button: to Tal (wait for the window, burn until the coast passes Tal 150 km up, correct on the way, brake into an orbit about 150 by 400 km; about 3.1 km/s and 6 h of game time) and back to Tumbledown (level a tilted orbit onto Tal's equator, burn so the fall bottoms out on the station's orbit, correct on the way, brake into a phasing orbit in the station's plane, close in on a point 4 km behind it, match speed, then station control docks you; about 3.6 km/s and up to 18 h). Everything is predicted under the same gravity as the flight and flown closed-loop; time warp runs through the waits. Steering or the throttle takes over. Landing and take-off stay with the pilot.
+- Four outposts on Tal (`src/outposts.js`): Kessit Deep, Onn Basin, Harrow Rise, Tessaly Flats, near the equator on flat ground: a pad with lamps, concrete bunkers with slit windows, a dome, a mast with a red beacon you can see from orbit, and a marker with the distance.
+- Work: after the first run the Factor offers three deliveries each visit (air filters, drill heads, water casks, sealed crates), paid on landing within 3 km of the outpost. One job at a time, if the hold has room.
+- Brannoc, the shipwright, at a bench under the Mudlark's nose: fills the tanks (2 credits per 100 m/s) and fits upgrades: main engine (5.5, then 7.5 m/s²), lift thrusters (5, 6.5), attitude jets (turn rates ×1.3, ×1.6), hold (12, 16 crates), tanks (26, 34 km/s). What you cannot afford is shown dimmed.
+- The tug: with the tanks dry anywhere but docked, "Call a tug" brings the ship into bay 3 for 300 credits (you may end up owing; the next job pays it off) and leaves a quarter tank, so nobody gets stranded.
+- Saving keeps the parts fitted, the job and the fuel.
+- Tests: fuel, the shared plane, every outpost landable and recognised, the tug, the courses flown end to end (to Tal and back into station control, from a tilted orbit, from near the station), the rules for jobs, upgrades and fuel.
 
 ### Phase 5: Trouble
 
@@ -206,11 +219,13 @@ Confirmed by Craig:
 13. **The Mudlark's look:** Harkonnen-style: black, angular, heavy, spiked; same size and handling.
 14. **Tumbledown's look:** the same shape rebuilt brutalist (dark ribbed stone and metal, slit windows; no neon, no painted shacks).
 15. **First jobs:** deliveries to Tal outposts, with upgrades and fuel bought at the station.
+16. **Trips:** the flight computer flies the trips between Tumbledown and Tal (a course from the Course button); the pilot lands and takes off.
+17. **Tal's orbit:** moved into the station's plane, so trips need no plane change.
 
 Still to confirm (recommendations):
 
-16. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
-17. **Ship and station models** built from shapes in code (like the Halberd).
-18. **Combat** with aim assist (the guns lead the target; you choose when to fire).
+18. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
+19. **Ship and station models** built from shapes in code (like the Halberd).
+20. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
-Next: phase 4, upgrades and jobs.
+Next: phase 5, trouble.

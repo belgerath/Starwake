@@ -108,6 +108,19 @@ export const STATION = {
   pad: [0, -39, 300], approach: [0, -20, 1000], // ship centres: on the pad (gear on the bay floor), and the holding point behind the bay
 };
 
+// Outposts on Tal, where deliveries go: latitude and longitude in Tal's body frame (degrees; longitude 180
+// faces Veyra), on ground that stays under 2.5° of slope for a kilometre round. A delivery counts when the
+// ship lands within OUTPOST_RANGE of one. Near the equator, so the orbit the courses arrive on passes over them.
+export const OUTPOSTS = {
+  kessit: {name: 'Kessit Deep', lat: 1, lon: 176.75, about: 'A mining camp in a basin on the side facing Veyra.'},
+  onn: {name: 'Onn Basin', lat: -2.25, lon: 32.25, about: 'Water pumps and a cistern, on the far side.'},
+  harrow: {name: 'Harrow Rise', lat: 2, lon: 259, about: 'A relay mast on a plateau, behind Tal as it goes round.'},
+  tessaly: {name: 'Tessaly Flats', lat: 0, lon: 340.5, about: 'A salvage yard on the flats.'},
+};
+export const OUTPOST_RANGE = 3000;
+// Direction of an outpost from Tal's centre, in Tal's body frame (unit vector as [x, y, z]).
+export const outpostDir = o => { const la = o.lat * Math.PI / 180, lo = o.lon * Math.PI / 180; return [Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo)]; };
+
 // Landing on Tal, belly-down on the landing gear.
 export const LEG_TIME = 3;         // seconds to lower or raise the gear
 // Touchdown limits: safe under LAND_DOWN m/s down, LAND_SIDE m/s sideways, tilted under LAND_TILT°, on ground

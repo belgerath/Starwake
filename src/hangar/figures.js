@@ -38,6 +38,7 @@ const LOOKS = {
   merchant: {robe: [0x6a3e2c, 0x5c4030, 0x4e3a2a], mantle: [0x8a6236, 0x76502e], eyes: 0.3},
   proctor: {robe: [0x111013], mantle: [0x1d1b21], eyes: 0},
   factor: {robe: [0x3a2218], mantle: [0x6a3a22], eyes: 1},
+  wright: {robe: [0x2a2724], mantle: [0x4a3a2a], eyes: 0},
 };
 
 // A robed figure. opts: {look, h, seed (0..1), staff, lamp, mask, hunch}.

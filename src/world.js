@@ -15,6 +15,7 @@ import {createTerrain} from './terrain.js';
 import {buildTransport} from './ship/transport.js';
 import {buildDestroyer} from './ship/destroyer.js';
 import {buildStation} from './station.js';
+import {buildOutposts} from './outposts.js';
 import {buildBridge} from './ship/bridge.js';
 
 const V3 = THREE.Vector3;
@@ -66,6 +67,7 @@ export function buildWorld() {
   // W.moon is Tal's body frame (tal.js heights and talQuat() live here); the ground is terrain chunks in it.
   W.moon = new THREE.Group(); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);
   W.terrain = createTerrain(W.moon, mA.texture, mN.texture);
+  W.outposts = buildOutposts(W.moon); W.outpostTarget = null; // main.js sets the delivery's outpost
   const mpts = []; for (let i = 0; i <= 360; i++) { const a = i / 360 * TAU; mpts.push(new V3(MOON_A * Math.cos(a), 0, -MOON_A * Math.sin(a))); }
   W.moonLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(mpts), new THREE.LineBasicMaterial({color: 0x8ea2b6, transparent: true, opacity: 0.4, depthWrite: false})); W.moonLine.frustumCulled = false; moonPlane.add(W.moonLine);
   const og = new THREE.BufferGeometry(); og.setAttribute('position', new THREE.BufferAttribute(W.predPos, 3).setUsage(THREE.DynamicDrawUsage)); og.setDrawRange(0, 0);
@@ -98,6 +100,7 @@ export function updateWorld(dt, rt) {
   W.world.position.copy(S.pos).negate();
   W.spinG.rotation.y = SPIN * S.t; W.cloudMesh.rotation.y = -0.2 * SPIN * S.t; W.planet.material.uniforms.cloudDelta.value = -W.cloudMesh.rotation.y;
   W.moonPivot.rotation.y = moonTh(S.t);
+  W.outposts.update(rt, W.outpostTarget);
   const ship = W.ship;
   ship.root.quaternion.copy(S.quat); ship.setLegs(S.legs); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
   W.station.root.position.copy(ST.pos); lvlhQuat(ST, W.station.root.quaternion); W.station.update(S.t, S.bay, rt);

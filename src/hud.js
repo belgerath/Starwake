@@ -1,12 +1,15 @@
-// HTML overlay: flight readouts, markers (Veyra, Tal, Tumbledown, the Halberd) and motion markers,
-// flight-computer buttons, toasts, the docking prompt, and the intro, docked and crash cards.
+// HTML overlay: flight readouts and fuel, markers (Veyra, Tal, Tumbledown, the Halberd, outposts) and motion
+// markers, flight-computer buttons and courses, toasts, the docking and tug prompts, and the intro, docked,
+// course, delivery and crash cards.
 // UI state is read from S/O every frame (with change checks), so physics never needs to call the HUD.
 import * as THREE from 'three';
-import {WARPS, MOON_R, SHIP, STATION} from './config.js';
+import {WARPS, MOON_R, SHIP, STATION, OUTPOSTS} from './config.js';
 import {fmt, clamp, $} from './util.js';
 import {app, cam} from './engine.js';
 import {S, O, relVel} from './physics.js';
 import {W} from './world.js';
+import {courseStatus, courseOptions} from './course.js';
+import {G, TUG} from './game.js';
 
 const V3 = THREE.Vector3;
 let markers = [];
@@ -38,6 +41,10 @@ export function initHud(actions) {
   $('dockNo').addEventListener('click', actions.declineDock);
   $('undockBtn').addEventListener('click', actions.undock);
   $('retryBtn').addEventListener('click', actions.retry);
+  $('courseBtn').addEventListener('click', () => { if (S.launched && !S.crash) actions.openCourses(); });
+  $('tugYes').addEventListener('click', actions.callTug);
+  $('tugNo').addEventListener('click', actions.declineTug);
+  $('delOk').addEventListener('click', actions.closeDelivered);
   $('orbitBtn').addEventListener('click', actions.backToOrbit);
   const track = $('thrTrack');
   const showTouch = () => { $('touch').hidden = false; $('keysTouch').hidden = false; $('keysKb').hidden = true; trackH = track.clientHeight || trackH; };
@@ -56,10 +63,18 @@ export function initMarkers(actions) {
                   {name: 'Tal', key: 'moon', mesh: W.moon, radius: MOON_R, tag: () => 'Tal · ' + fmt(Math.max(0, O.altMoon) / 1000) + ' km'},
                   {name: STATION.name, key: 'station', mesh: W.station.root, radius: STATION.ringR, tag: () => O.stDist < 3e6 && !S.dock ? STATION.name + ' · ' + distTxt(O.stDist) + (O.stDist < 100e3 ? ' · ' + fmt(O.stSpeed) + ' m/s' : '') : null},
                   {name: 'the Halberd', key: 'halberd', mesh: W.halberd.root, radius: 200, tag: () => O.hbDist < 300e3 && !S.dock ? 'Halberd · ' + distTxt(O.hbDist) : null}];
+  // Outposts on Tal: near Tal, the delivery's outpost at any distance and the others within 300 km. A tap says
+  // what is there.
+  const oV = new V3();
+  for (const [k, o] of Object.entries(OUTPOSTS)) {
+    const mesh = W.outposts.list[k].group;
+    bodies.push({name: o.name, key: 'outpost', mesh, radius: 60, tap: () => toast('outpost', `${o.name}. ${o.about}`),
+      tag: () => { if (O.dom !== 1 || S.dock) return null; const d = mesh.getWorldPosition(oV).length(); return (G.job && G.job.to === k) || d < 300e3 ? o.name + ' · ' + distTxt(d) : null; }});
+  }
   markers = bodies.map(b => {
-    const el = document.createElement('button'); el.type = 'button'; el.className = 'marker'; el.setAttribute('aria-label', 'Turn to face ' + b.name);
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'marker'; el.setAttribute('aria-label', b.tap ? b.name : 'Turn to face ' + b.name);
     el.innerHTML = '<span class="ring"></span><span class="tag"></span>';
-    el.addEventListener('click', () => { if (!S.launched) return; actions.toggleHold(b.key); if (S.hold === b.key) toast('lock', 'Turning to face ' + b.name + '.'); });
+    el.addEventListener('click', () => { if (!S.launched) return; if (b.tap) { b.tap(); return; } actions.toggleHold(b.key); if (S.hold === b.key) toast('lock', 'Turning to face ' + b.name + '.'); });
     $('markers').appendChild(el); return {b, el, tag: el.querySelector('.tag')};
   });
 }
@@ -81,12 +96,31 @@ export function showCrash(msg, canRetry) {
   (canRetry ? $('retryBtn') : $('orbitBtn')).focus({preventScroll: true});
 }
 export function hideCrash() { $('crash').hidden = true; $('retryBtn').blur(); $('orbitBtn').blur(); }
+// The tug offer while the tanks are dry; the delivery card on landing at the job's outpost.
+export function setTugAsk(on) { const el = $('tugAsk'); if (el.hidden === !on) return; el.hidden = !on; $('tugYes').textContent = `Call a tug, ${TUG} credits`; }
+export function showDelivered(title, text) { $('delTitle').textContent = title; $('delMsg').textContent = text; $('delivered').hidden = false; $('delOk').focus({preventScroll: true}); }
+export function hideDelivered() { $('delivered').hidden = true; $('delOk').blur(); }
+// The course card: the trips on offer (or why not), Cancel course while one is flying, Close.
+export function showCourses(start, cancel, close) {
+  const box = $('courseOpts'); box.textContent = '';
+  const btn = (label, main, fn, off) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'launch' + (main ? '' : ' alt'); b.textContent = label; b.disabled = !!off; b.addEventListener('click', fn); box.appendChild(b); return b; };
+  const st = courseStatus();
+  if (st) { const p = document.createElement('p'); p.className = 'why'; p.textContent = 'Now: ' + st.text + '.'; box.appendChild(p); btn('Cancel course', true, cancel); }
+  else for (const o of courseOptions()) {
+    btn(o.label, o.ok, () => start(o.dest), !o.ok);
+    if (!o.ok && o.why) { const p = document.createElement('p'); p.className = 'why'; p.textContent = o.why; box.appendChild(p); }
+  }
+  btn('Close', false, close);
+  $('courseCard').hidden = false; const f = box.querySelector('button:not(:disabled)'); f && f.focus({preventScroll: true});
+}
+export function hideCourses() { $('courseCard').hidden = true; }
 
 // ---- per-frame UI state ----
 const MODES = ['Chase', 'Cockpit', 'Map'];
 let uiKey = '';
 export function refreshUI() {
-  const key = S.hold + '|' + S.warpIdx + '|' + S.camMode + '|' + S.hover + '|' + O.surf;
+  const course = !!courseStatus();
+  const key = S.hold + '|' + S.warpIdx + '|' + S.camMode + '|' + S.hover + '|' + O.surf + '|' + course;
   if (key === uiKey) return; uiKey = key;
   $('holdPro').setAttribute('aria-pressed', S.hold === 'pro'); $('holdRetro').setAttribute('aria-pressed', S.hold === 'retro');
   // Hover is offered low over Tal; while hovering the ship levels itself, so the holds are off.
@@ -96,6 +130,7 @@ export function refreshUI() {
   for (const m of markers) m.el.classList.toggle('lock', S.hold === m.b.key);
   const w = WARPS[S.warpIdx]; $('warpVal').textContent = fmt(w) + '×'; $('wlab').classList.toggle('on', w > 1);
   $('camBtn').textContent = MODES[S.camMode]; $('readouts').hidden = S.camMode === 1; $('lookBtn').hidden = S.camMode === 2;
+  $('courseBtn').setAttribute('aria-pressed', course);
 }
 
 const kmTxt = m => m === Infinity ? 'Escape' : (m < 0 ? '−' : '') + fmt(Math.abs(m) / 1000);
@@ -113,10 +148,12 @@ export function updateHud() {
   const s = fmt(O.speed), a = g ? (O.clear < 1e4 ? fmt(Math.max(0, O.clear)) : fmt(O.clear / 1000)) : fmt(O.alt / 1000);
   const v = (O.vv < -0.05 ? '−' : '+') + (g ? slow(O.vv) : fmt(Math.abs(O.vv)));
   const ap = g ? slow(O.hs) : kmTxt(O.ap), pe = g ? (O.impact === Infinity ? 'None' : fmt(O.impact)) : kmTxt(O.pe);
-  const cue = O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
-  const land = S.dock ? DOCKING[S.dock.phase] : S.landed ? 'Landed' : (g && S.legsDown && !cue && O.ready ? READY[O.ready] : '');
+  const course = courseStatus(), cue = !course && O.brake < 60 ? (O.brake <= 0 ? 'Brake now' : 'Brake in ' + Math.ceil(O.brake) + ' s') : '';
+  const land = S.dock ? DOCKING[S.dock.phase] : course ? course.text : S.landed ? 'Landed' : (g && S.legsDown && !cue && O.ready ? READY[O.ready] : '');
+  const fuel = Math.max(0, Math.round(100 * S.fuel / SHIP.tank)), fuelPos = Math.max(0, Math.min(1, S.fuel / SHIP.tank));
   const hover = S.hover ? Math.min(1, O.g / SHIP.aLift) : -1; // mark on the slider where lift balances gravity
-  const key = [g, s, a, v, ap, pe, pc, pos.toFixed(3), O.name, cue, land, hover.toFixed(2), trackH].join('|'); if (key === lastHud) return; lastHud = key;
+  const key = [g, s, a, v, ap, pe, pc, pos.toFixed(3), O.name, cue, land, hover.toFixed(2), trackH, fuelPos.toFixed(3)].join('|'); if (key === lastHud) return; lastHud = key;
+  $('fuelPct').textContent = fuel + '%'; $('fuelBar').style.width = (fuelPos * 100) + '%'; $('fuelBar').parentNode.parentNode.classList.toggle('low', fuelPos < 0.2);
   $('spdLab').textContent = g ? 'Ground speed' : 'Speed'; $('spd').textContent = s;
   $('altLab').textContent = g ? 'Height' : 'Altitude · ' + O.name; $('alt').textContent = a; $('altU').textContent = g && O.clear < 1e4 ? 'm' : 'km';
   $('vsp').textContent = v;
@@ -124,7 +161,7 @@ export function updateHud() {
   $('peLab').textContent = g ? 'Impact in' : 'Periapsis'; $('pe').textContent = pe; $('peU').textContent = g ? 's' : 'km'; $('peU').hidden = g && O.impact === Infinity;
   $('pe').classList.toggle('warn', g ? O.impact < 30 : O.pe < 0);
   $('cue').hidden = !cue; $('cue').textContent = cue; $('cue').classList.toggle('now', cue === 'Brake now');
-  $('land').hidden = !land; $('land').textContent = land; $('land').classList.toggle('ok', !!S.dock || land === 'Landed' || land === READY.ok);
+  $('land').hidden = !land; $('land').textContent = land; $('land').classList.toggle('ok', !!S.dock || !!course || land === 'Landed' || land === READY.ok);
   // Thrust: the main engine, or the lift thrusters while hovering.
   $('thrName').textContent = S.hover ? 'Lift' : 'Throttle'; $('thrPct').textContent = pc + '%'; $('thrBar').style.width = (pos * 100) + '%';
   $('thrLab').textContent = S.hover ? 'Lift' : 'Thrust';
@@ -134,7 +171,7 @@ export function updateHud() {
 }
 
 // ---- markers ----
-const AVOID = ['readouts', 'cue', 'land', 'dockAsk']; // HUD boxes a marker pinned to the screen edge moves out of, left to right
+const AVOID = ['readouts', 'cue', 'land', 'dockAsk', 'tugAsk']; // HUD boxes a marker pinned to the screen edge moves out of, left to right
 const pv = new V3(), cv = new V3(), tV = new V3(), dirV = new V3(), zero = new V3(), sp1 = {x: 0, y: 0, behind: false};
 function screenOf(p, out) {
   cv.copy(p).applyMatrix4(cam.matrixWorldInverse); const behind = cv.z > 0; tV.copy(p).project(cam);

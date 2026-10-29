@@ -3,8 +3,8 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import * as THREE from 'three';
 import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT, setNotifier, hasCheckpoint, restoreCheckpoint, setHover, STAND_H,
-  ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore, moonQ} from '../src/physics.js';
-import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
+  ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore, moonQ, outpostPos, towIn} from '../src/physics.js';
+import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, OUTPOSTS, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
 
 const SUN = new THREE.Vector3(...SUN_DIR).normalize();
 const idle = {pitch: 0, yaw: 0, roll: 0, boost: false, retro: false};
@@ -232,6 +232,16 @@ describe('landing on Tal', () => {
     initTalOrbit(SUN); expect(findGround(16, 30)).toBe(true); hoverAt(1); S.hover = false; run(10);
     expect(S.crash).toMatch(/^The ground there slopes \d+° and the ship tipped over\./);
   });
+  it('every outpost stands on ground flat enough to land on, and is found when the ship lands there', () => {
+    for (const k of Object.keys(OUTPOSTS)) {
+      initTalOrbit(SUN); const g = outpostPos(k, S.t, V()), up = g.clone().sub(moonPos(S.t, V())).normalize();
+      S.pos.copy(g).addScaledVector(up, STAND_H + 1).addScaledVector(east(), 40); // a little off the outpost's centre
+      S.quat.setFromRotationMatrix(new THREE.Matrix4().lookAt(V(), east(), up));
+      talGroundVel(S.pos, S.t, S.vel); S.w.set(0, 0, 0); S.hold = null; S.legs = 1; S.legsDown = true; S.hover = true; S.throttle = 0; orbInfo();
+      run(5); expect(S.crash).toBe(null); expect(S.landed).toBe(true);
+      expect(O.outpost).toBe(k); expect(O.outpostDist).toBeLessThan(100);
+    }
+  });
   it('falling without braking crashes, and can be tried again from 15 km up', () => {
     S.hold = 'retro'; run(40); S.throttle = 1; run(360); S.throttle = 0;
     for (let i = 0; i < 900 && !S.crash; i++) run(1);
@@ -293,6 +303,9 @@ describe('Tumbledown', () => {
   it('flying into the station is a crash', () => {
     placeAt(new THREE.Vector3(0, 0, 800), new THREE.Vector3(0, 0, -20)); run(40);
     expect(S.crash).toMatch(/^You hit Tumbledown at \d+(\.\d)? m\/s\.$/);
+  });
+  it('a tug puts the ship on the pad, docked', () => {
+    towIn(); run(1); expect(S.dock.phase).toBe('docked'); expect(O.stDist).toBeLessThan(500);
   });
   it('a snapshot brings the whole flight back, docked or not', () => {
     placeAt(new THREE.Vector3(0, 0, 6000)); requestDock(); runDock('docked');

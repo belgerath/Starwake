@@ -3,33 +3,34 @@ import './style.css';
 import {WARPS, R, MOON_R, STATION, SHIP} from './config.js';
 import {clamp} from './util.js';
 import {renderer, scene, skyScene, skyG, cam, icam, sunDir} from './engine.js';
-import {S, O, ST, HB, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos, hasCheckpoint, restoreCheckpoint, setHover, requestDock as askToDock, startUndock} from './physics.js';
+import {S, O, ST, HB, initOrbit, initTalOrbit, orbInfo, stepFlight, maxWarpIdx, setNotifier, talAgl, talGroundVel, moonPos, hasCheckpoint, restoreCheckpoint, setHover, requestDock as askToDock, startUndock, outpostPos} from './physics.js';
 import {saveGame, loadGame, clearSave} from './save.js';
-import {onUndock} from './game.js';
+import {G, onDock, onUndock, deliver, callTug as payTug} from './game.js';
+import {startCourse, stepCourse, cancelCourse, courseActive, setCourseHooks} from './course.js';
 import {W, buildWorld, updateWorld, updateTerrain, updateRocks, updatePrediction, resetPrediction} from './world.js';
 import {buildSky, updateSky} from './sky.js';
 import {updateBridge} from './ship/bridge.js';
 import {updateCamera, snapCamera} from './camera.js';
 import {initInput, readInput, IN} from './input.js';
 import {updateSound, sfx, soundOn, setSound, soundDebug} from './sound.js';
-import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro, showCrash, hideCrash, setDockAsk, setDocked} from './hud.js';
+import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro, showCrash, hideCrash, setDockAsk, setDocked, setTugAsk, showDelivered, hideDelivered, showCourses, hideCourses} from './hud.js';
 
-let ready = false, crashShown = false, dockDeclined = false, quietOut = 0, askShown = false, wasDocked = false, saveT = 0;
+let ready = false, crashShown = false, dockDeclined = false, quietOut = 0, askShown = false, wasDocked = false, saveT = 0, tugQuiet = 0, cardPaused = false;
 // The hangar (hangar/ui.js, loaded on demand): HG once it is built; inHangar while it is drawn instead of space.
 let HG = null, hgLoading = null, hgPct = 0, hgFailed = false, inHangar = false;
 
 function launch() { if (S.crash) return; S.launched = true; S.paused = false; hideIntro(); }
 // Testing shortcut: a low orbit around Tal (from the intro card or the pause card).
-function startTal() { initTalOrbit(sunDir); setMode(0); launch(); }
+function startTal() { cancelCourse(); initTalOrbit(sunDir); setMode(0); launch(); }
 function togglePause() { if (S.crash) return; if (S.paused) { launch(); return; } S.paused = true; S.warpIdx = 0; saveGame(); showIntro('Resume'); }
 // New game: back to the start orbit behind Tumbledown, the saved game forgotten.
-function newGame() { clearSave(); initOrbit(sunDir); setMode(0); launch(); }
+function newGame() { cancelCourse(); clearSave(); initOrbit(sunDir); setMode(0); launch(); }
 // After a crash: Try again from the checkpoint (see physics), or Back to orbit (around Tal, or the start orbit).
-function retry() { if (!restoreCheckpoint()) { backToOrbit(); return; } hideCrash(); crashShown = false; snapCamera(); launch(); }
-function backToOrbit() { hideCrash(); crashShown = false; if (O.dom === 1) startTal(); else { initOrbit(sunDir); setMode(0); launch(); } }
+function retry() { cancelCourse(); if (!restoreCheckpoint()) { backToOrbit(); return; } hideCrash(); crashShown = false; snapCamera(); launch(); }
+function backToOrbit() { cancelCourse(); hideCrash(); crashShown = false; if (O.dom === 1) startTal(); else { initOrbit(sunDir); setMode(0); launch(); } }
 // Docking at Tumbledown: station control flies the run. Not now hides the offer until you leave its range,
 // and after undocking it stays hidden until you are 3 km out.
-function requestDock() { if (askToDock()) { setDockAsk(false); sfx('chime'); toast('dockOk', `${STATION.name} control: we have you. Sit back.`); preloadHangar(); } }
+function requestDock() { if (!askToDock()) return false; cancelCourse(); setDockAsk(false); sfx('chime'); toast('dockOk', `${STATION.name} control: we have you. Sit back.`); preloadHangar(); return true; }
 function declineDock() { dockDeclined = true; quietOut = STATION.dockRange * 1.1; setDockAsk(false); }
 function undock() {
   if (!startUndock()) return;
@@ -68,7 +69,17 @@ function warpStep(d) {
   const max = maxWarpIdx(), want = clamp(S.warpIdx + d, 0, WARPS.length - 1);
   if (want > max) { toast('warp', 'Time warp is limited this close to a surface.'); S.warpIdx = max; } else S.warpIdx = want;
 }
-const actions = {launch, startTal, newGame, retry, backToOrbit, togglePause, setMode, cycleCam, toggleHold, toggleHover, warpStep, requestDock, declineDock, undock, dockKey, toggleSound, isReady: () => ready};
+// The flight computer's courses: a card to pick one (the game waits while it is open); the course hands over to
+// station control at the end, like the docking offer.
+function pauseFor(on) { if (on && !S.paused) { cardPaused = true; S.paused = true; } else if (!on && cardPaused) { cardPaused = false; S.paused = false; } }
+function openCourses() { pauseFor(true); showCourses(dest => { const why = startCourse(dest); closeCourses(); if (why) toast('course', why); else sfx('chime'); }, () => { cancelCourse('Course cancelled. You have the controls.'); closeCourses(); }, closeCourses); }
+function closeCourses() { hideCourses(); pauseFor(false); }
+setCourseHooks({dock: requestDock});
+// Tanks dry: a tug, or Not now for a minute.
+function callTug() { cancelCourse(); payTug(); setTugAsk(false); sfx('clunk'); toast('tug', `A ${STATION.name} tug has you on a line. You owe it ${G.credits < 0 ? 'more than you have' : 'its fee'}.`); preloadHangar(); }
+function declineTug() { tugQuiet = 60; setTugAsk(false); }
+function closeDelivered() { hideDelivered(); pauseFor(false); }
+const actions = {launch, startTal, newGame, retry, backToOrbit, togglePause, setMode, cycleCam, toggleHold, toggleHover, warpStep, requestDock, declineDock, undock, dockKey, toggleSound, openCourses, callTug, declineTug, closeDelivered, isReady: () => ready};
 
 setNotifier(toast);
 initInput(actions);
@@ -86,13 +97,19 @@ function updateDebug(now) {
 let last = 0, rt = 0, skyBodies = null;
 // Sound follows the ship: engine and thrusters, the bay doors, the hangar; clunks and the crash as they happen.
 const was = {landed: false, crash: null, phase: null, brake: false, bay: 0, w: 0};
+// Landing on Tal: delivers the job if this is its outpost (a card, the pay), or says it is the wrong one.
+function landed() {
+  const r = deliver(O.outpost, O.outpostDist); if (!r) return;
+  if (r.paid) { sfx('coins'); pauseFor(true); showDelivered(r.title, r.text + ' Back to Tumbledown for more work.'); saveGame(); }
+  else toast('wrongOutpost', r.text);
+}
 function sounds(dt) {
   const w = S.w.length(), turn = Math.min(1, Math.abs(w - was.w) / Math.max(dt, 1e-3) / 0.3); was.w = w;
   const doors = Math.min(1, Math.abs(S.bay - was.bay) / Math.max(dt, 1e-3) * 8); was.bay = S.bay;
   const flying = S.launched && !S.paused && !S.crash && !inHangar;
   updateSound({main: S.aMain / SHIP.aBoost, lift: S.aLift / SHIP.aLift, turn, boost: IN.boost, retro: IN.retro && !S.dock && !S.landed, doors, hangar: inHangar && !S.paused, quiet: !flying});
   const phase = S.dock ? S.dock.phase : null, brake = O.brake <= 0 && !S.hover;
-  if (S.landed && !was.landed) sfx('clunk');
+  if (S.landed && !was.landed) { sfx('clunk'); landed(); }
   if (phase === 'docked' && was.phase === 'in') sfx('clunk');
   if (S.crash && !was.crash) sfx('crash');
   if (brake && !was.brake && flying) sfx('warn');
@@ -100,7 +117,11 @@ function sounds(dt) {
 }
 function frame(now) {
   const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now; rt += dt;
-  if (S.launched && !S.paused) stepFlight(dt, readInput(dt));
+  if (S.launched && !S.paused) {
+    stepCourse(dt); const inp = readInput(dt);
+    if (courseActive() && (inp.boost || inp.retro)) cancelCourse('Course cancelled. You have the controls.');
+    stepFlight(dt, inp);
+  }
   else { orbInfo(); S.inPitch *= 0.9; S.inYaw *= 0.9; }
   if (S.crash && !crashShown) { crashShown = true; showCrash(S.crash, hasCheckpoint()); }
   // Docking: offer it in range (time warp stops so the offer is not missed), the docked card in the bay.
@@ -109,13 +130,16 @@ function frame(now) {
   if (ask && !askShown) S.warpIdx = 0;
   askShown = ask; setDockAsk(ask);
   const docked = !!S.dock && S.dock.phase === 'docked', inBay = docked && S.bay < 0.05;
-  if (docked && !wasDocked) saveGame();
+  if (docked && !wasDocked) { onDock(); saveGame(); } // the Factor's work changes with each docking
   if (!docked && wasDocked) onUndock(); // customs again next visit
   wasDocked = docked;
   // In the bay with the doors shut: into the hangar once it has loaded; until then the docked card says why not.
   if (inBay && !inHangar && !S.paused && S.launched) { if (HG) { inHangar = true; HG.enter(hangarHooks); } else if (!hgFailed) preloadHangar(); }
   if (inHangar && !inBay) { HG.exit(); inHangar = false; }
   setDocked(inBay && !inHangar && !S.paused, hgFailed ? 'The hangar could not load. Check your connection, then undock and dock again.' : `Opening the hangar… ${Math.round(hgPct * 100)}%`);
+  // Tanks dry and nowhere to go: offer a tug (Not now hides it for a minute).
+  tugQuiet = Math.max(0, tugQuiet - dt); setTugAsk(S.launched && !S.paused && !S.dock && !S.crash && S.fuel < 50 && tugQuiet <= 0);
+  W.outpostTarget = G.job ? G.job.to : null;
   // The browser keeps the game: on docking (above), every minute of flight, on pause and when the page is hidden.
   if (S.launched && !S.paused && !S.crash) { saveT += dt; if (saveT > 60) { saveT = 0; saveGame(); } }
   sounds(dt);
@@ -142,7 +166,7 @@ setTimeout(() => { // let the intro card paint before the GPU bakes the planet
   addEventListener('visibilitychange', () => { if (document.hidden && S.launched) saveGame(); });
   addEventListener('pagehide', () => { if (S.launched) saveGame(); });
   if (new URLSearchParams(location.search).has('debug')) {
-    window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo, hangar: () => HG, sound: soundDebug};
+    window.starwake = {S, O, ST, HB, G, actions, W, cam, talAgl, talGroundVel, moonPos, outpostPos, orbInfo, hangar: () => HG, sound: soundDebug};
     dbg = document.createElement('div'); dbg.id = 'dbg'; document.getElementById('hud').appendChild(dbg);
   }
   requestAnimationFrame(frame);
