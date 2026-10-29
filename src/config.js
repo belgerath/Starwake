@@ -91,12 +91,13 @@ export const HALBERD = {
   legFeet: [[2.5, -2.6, 8.35], [-2.5, -2.6, 8.35], [2.5, 2.4, 8.35], [-2.5, 2.4, 8.35]],
 };
 
-// Tumbledown: a huge, ramshackle station where outcasts and misfits trade. It orbits STATION.alt up, starting
+// Tumbledown: a huge brutalist station where outcasts and misfits trade. It orbits STATION.alt up, starting
 // STATION.lead ahead of you on the start orbit; being a little higher, it drifts back toward you at about 5 m/s.
 // Station frame (metres): −z along its orbit, +y away from Veyra (it keeps that attitude as it goes round). A hub
 // along z with the docking bay in its +z end (facing back along the orbit), a ring around its middle spinning
-// for about 1 g, solar wings and a dish at the front. Within dockRange and under dockSpeed relative to it you
-// can ask to dock: station control flies you to the approach point behind the bay, then in to the pad.
+// for about 1 g, radiator wings and a spire at the front (wings and dish below are the shapes they collide as).
+// Within dockRange and under dockSpeed relative to it you can ask to dock: station control flies you to the
+// approach point behind the bay, then in to the pad.
 export const STATION = {
   name: 'Tumbledown', alt: 403e3, lead: 25e3, dockRange: 10e3, dockSpeed: 50,
   hubR: 110, hubLen: 900, ringR: 1300, ringTube: 70, spin: 0.087, spokeR: 22,

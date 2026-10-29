@@ -141,7 +141,7 @@ function build() {
   // ---- the Mudlark on its pad, gear down, engines cold; the pad inlaid in the floor ----
   ship = buildTransport(); ship.root.position.set(0, -SHIP.feet[0][1], 0); ship.setLegs(1);
   for (const m of [...ship.flames, ...ship.glows, ...ship.lift.flames, ...ship.lift.glows]) m.visible = false; if (ship.eLight) ship.eLight.visible = false;
-  for (const m of ship.engineGlow) m.color.setRGB(0.008, 0.009, 0.01); // engines cold
+  for (const m of ship.engineGlow) m.color.setRGB(0, 0, 0); // engines cold
   ship.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   for (const m of ship.mats) m.envMapIntensity = 0.6;
   S.add(ship.root); S.add(blob(17));
