@@ -17,7 +17,9 @@ export const FLOOR = 15e3;         // hard deck until landing exists
 export const MOON_R = 1.64e6;
 export const GM_M = 4.03e12;
 export const MOON_A = 4.2e7;       // orbit radius
-export const MOON_INC = 0.09;      // orbit inclination to Veyra's equator
+// Tal, Tumbledown, the Halberd and the start orbit share one plane, tilted this far (radians) from Veyra's
+// equator, so the ring is seen at an angle and trips between them need no change of plane.
+export const ORBIT_INC = 0.33;
 export const SOI_M = MOON_A * Math.pow(GM_M / GM, 0.4);
 export const MOON_N = Math.sqrt((GM + GM_M) / Math.pow(MOON_A, 3));
 // Tal's terrain. MOON_H (GPU bake) and tal.js (JS, for meshes and collision) both use these.
@@ -66,6 +68,7 @@ export const TRANSPORT = {
   name: 'Mudlark', length: 35, mass: 4e5, cda: 150, // drag coefficient × frontal area (m²)
   aMain: 4, aBoost: 8, aRetro: 1,  // m/s²: main engine at full throttle (along the nose), Boost, retro thrusters (Space)
   aLift: 4,                        // m/s²: belly lift thrusters at full throttle, in hover mode
+  tank: 20e3,                      // fuel, as the speed change it buys (m/s): generous, a trip to Tal and back is about 12 km/s
   // Rotation [pitch, yaw, roll]: rate is the top turn rate (rad/s), acc how fast thrusters start and stop a turn (rad/s²).
   rate: [0.17, 0.14, 0.24], acc: [0.45, 0.4, 0.6],
   stand: [0, 1, 0],                // lands belly-down: this axis points up when standing on the gear

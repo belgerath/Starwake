@@ -5,12 +5,12 @@
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
 import * as THREE from 'three';
-import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, STATION, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
+import {R, ATM_TOP, MOON_R, MOON_A, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, STATION, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
 import {scene, sunDir, sunLight, hemi, makeEnv, renderer, cam} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
-import {S, O, ST, HB, lvlhQuat, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
+import {S, O, ST, HB, lvlhQuat, qTilt, qTiltInv, eqN, moonQ, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
 import {createTerrain} from './terrain.js';
 import {buildTransport} from './ship/transport.js';
 import {buildDestroyer} from './ship/destroyer.js';
@@ -61,7 +61,7 @@ export function buildWorld() {
   const rg = new THREE.RingGeometry(RING_IN, RING_OUT, 720, 8); rg.rotateX(-Math.PI / 2);
   W.ringMat = new THREE.ShaderMaterial({uniforms: {center: {value: new V3()}, L: {value: sunDir}, ringN: {value: eqN.clone()}, Rp: {value: R}, Rin: {value: RING_IN}, Rout: {value: RING_OUT}, sunI: {value: SUN_I}, fade: {value: 1}}, vertexShader: SURF_VERT, fragmentShader: RING_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, extensions: {derivatives: true}});
   W.ring = new THREE.Mesh(rg, W.ringMat); W.ring.renderOrder = 3; W.tiltG.add(W.ring);
-  const moonPlane = new THREE.Group(); moonPlane.rotation.x = MOON_INC; W.tiltG.add(moonPlane);
+  const moonPlane = new THREE.Group(); moonPlane.quaternion.copy(qTiltInv).multiply(moonQ); W.tiltG.add(moonPlane); // = physics' moonQ
   W.moonPivot = new THREE.Group(); moonPlane.add(W.moonPivot);
   // W.moon is Tal's body frame (tal.js heights and talQuat() live here); the ground is terrain chunks in it.
   W.moon = new THREE.Group(); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);

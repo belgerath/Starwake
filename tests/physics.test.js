@@ -3,8 +3,8 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import * as THREE from 'three';
 import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT, setNotifier, hasCheckpoint, restoreCheckpoint, setHover, STAND_H,
-  ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore} from '../src/physics.js';
-import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, MOON_INC, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
+  ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore, moonQ} from '../src/physics.js';
+import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
 
 const SUN = new THREE.Vector3(...SUN_DIR).normalize();
 const idle = {pitch: 0, yaw: 0, roll: 0, boost: false, retro: false};
@@ -43,6 +43,20 @@ describe('orbit', () => {
   });
 });
 
+describe('fuel', () => {
+  it('starts full, and burning costs the speed change it buys', () => {
+    expect(S.fuel).toBe(SHIP.tank);
+    S.throttle = 1; run(10); expect(SHIP.tank - S.fuel).toBeCloseTo(SHIP.aMain * 10, 0);
+    S.throttle = 0; const f = S.fuel; run(10); expect(S.fuel).toBe(f); // coasting is free
+  });
+  it('the engines stop when the tanks run dry, and a save keeps the fuel', () => {
+    S.fuel = SHIP.aMain * 2; S.throttle = 1; S.hold = null;
+    run(5); expect(S.fuel).toBe(0); expect(S.aMain).toBe(0);
+    const snap = JSON.parse(JSON.stringify(snapshot())); S.fuel = 123; restore(snap); expect(S.fuel).toBe(0);
+    delete snap.fuel; restore(snap); expect(S.fuel).toBe(SHIP.tank); // an older save: full tanks
+  });
+});
+
 describe('handling', () => {
   it('flips from prograde to retrograde in under 40 s', () => {
     S.hold = 'retro'; let t = 0; const v = new THREE.Vector3();
@@ -75,14 +89,19 @@ describe('Tal', () => {
     expect(minAgl).toBeGreaterThan(10e3);
   });
   it('body frame matches the scene graph that draws Tal', () => {
-    // world.js: tiltG (tilt about z) > moonPlane (rotation.x = MOON_INC) > moonPivot (rotation.y = moonTh) > Tal
+    // world.js: tiltG (tilt about z) > moonPlane (the tilt undone, then moonQ) > moonPivot (rotation.y = moonTh) > Tal
     const tilt = new THREE.Group(), plane = new THREE.Group(), pivot = new THREE.Group(), tal = new THREE.Group();
-    tilt.quaternion.setFromEuler(new THREE.Euler(0, 0, TILT)); plane.rotation.x = MOON_INC; tal.position.set(MOON_A, 0, 0);
+    tilt.quaternion.setFromEuler(new THREE.Euler(0, 0, TILT)); plane.quaternion.copy(tilt.quaternion).invert().multiply(moonQ); tal.position.set(MOON_A, 0, 0);
     tilt.add(plane); plane.add(pivot); pivot.add(tal);
     S.t = 12345; pivot.rotation.y = S.moonTh0 + Math.sqrt((3.456e14 + 4.03e12) / MOON_A ** 3) * S.t; tilt.updateMatrixWorld(true);
     const q = tal.getWorldQuaternion(new THREE.Quaternion()), p = tal.getWorldPosition(new THREE.Vector3());
     expect(Math.abs(q.dot(talQuat(S.t, new THREE.Quaternion())))).toBeGreaterThan(1 - 1e-9);
     expect(p.distanceTo(moonPos(S.t, new THREE.Vector3()))).toBeLessThan(1);
+  });
+  it('orbits in the same plane as Tumbledown and the start orbit', () => {
+    initOrbit(SUN); const n = (p, v) => new THREE.Vector3().crossVectors(p, v).normalize();
+    const nT = n(moonPos(S.t, new THREE.Vector3()), moonVel(S.t, new THREE.Vector3()));
+    for (const [p, v] of [[S.pos, S.vel], [ST.pos, ST.vel]]) expect(n(p, v).dot(nT)).toBeGreaterThan(Math.cos(0.1 * Math.PI / 180));
   });
 });
 
