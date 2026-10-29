@@ -22,6 +22,7 @@
       <div class="ro"><span class="lab"><span id="thrName">Throttle</span> <span id="thrPct">0%</span></span><div class="bar"><i id="thrBar"></i></div></div>
       <div class="ro"><span class="lab" id="apLab">Apoapsis</span><div><span class="val sm" id="ap">0</span><span class="unit" id="apU">km</span></div></div>
       <div class="ro"><span class="lab" id="peLab">Periapsis</span><div><span class="val sm" id="pe">0</span><span class="unit" id="peU">km</span></div></div>
+      <div class="ro wide"><span class="lab">Fuel <span id="fuelPct">100%</span></span><div class="bar"><i id="fuelBar"></i></div></div>
     </div>
     <div class="cue" id="cue" role="status" hidden></div>
     <div class="cue" id="land" role="status" hidden></div>
@@ -30,12 +31,18 @@
       <button class="chip" id="dockYes" type="button">Request docking</button>
       <button class="chip" id="dockNo" type="button">Not now</button>
     </div>
+    <div class="cue ask" id="tugAsk" role="group" aria-label="Tanks dry" hidden>
+      <span id="tugAskText">Tanks dry</span>
+      <button class="chip" id="tugYes" type="button">Call a tug</button>
+      <button class="chip" id="tugNo" type="button">Not now</button>
+    </div>
     <div class="tr">
       <div class="trrow">
         <button class="btn" id="camBtn" type="button">Chase</button>
         <button class="btn" id="helpBtn" type="button" aria-label="Pause and show controls">?</button>
       </div>
       <button class="btn" id="lookBtn" type="button" aria-pressed="false">Look</button>
+      <button class="btn" id="courseBtn" type="button" aria-pressed="false">Course</button>
     </div>
     <div id="markers"></div>
     <div class="vm" id="vmPro" hidden><svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true"><circle cx="15" cy="15" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 2v6.5M2 15h6.5M21.5 15H28" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/></svg></div>
@@ -82,10 +89,12 @@
     <div class="tr"><div class="trrow"><button class="btn" id="hgHelp" type="button" aria-label="Pause and show controls">?</button></div></div>
     <button class="hgTag" id="hgTag-customs" type="button" hidden><span>Proctor Vey</span><small>Customs</small></button>
     <button class="hgTag" id="hgTag-trader" type="button" hidden><span>The Factor</span><small>Broker</small></button>
+    <button class="hgTag" id="hgTag-wright" type="button" hidden><span>Brannoc</span><small>Shipwright</small></button>
     <div class="hgSay" id="hgSay" role="status" hidden></div>
     <div class="hgBar">
       <button class="chip" id="hgCustoms" type="button">Customs</button>
       <button class="chip" id="hgTrader" type="button">Market</button>
+      <button class="chip" id="hgWright" type="button">Shipwright</button>
       <button class="chip" id="hgLook" type="button">Look around</button>
       <button class="launch" id="hgUndock" type="button">Undock</button>
     </div>
@@ -107,7 +116,7 @@
         <p class="sub">First run · Tumbledown</p>
         <h1 class="wordmark">Starwake</h1>
       </div>
-      <p>You fly the Mudlark, a battered 35 m transport with a hold full of contraband, 400 km above Veyra at over 7 km/s. Tumbledown, a huge station where outcasts and misfits trade, is 25 km ahead and a little higher, drifting closer. Within 10 km and slower than 50 m/s you can ask to dock. Time warp brings it to you. Inside, clear customs and sell the 8 crates of ashroot in your hold.</p>
+      <p>You fly the Mudlark, a battered 35 m transport with a hold full of contraband, 400 km above Veyra at over 7 km/s. Tumbledown, a huge station where outcasts and misfits trade, is 25 km ahead and a little higher, drifting closer. Within 10 km and slower than 50 m/s you can ask to dock. Time warp brings it to you. Inside, clear customs and sell the 8 crates of ashroot in your hold. After that, the Factor has work hauling crates to outposts on Tal: tap Course and the flight computer flies you there and back, and you land.</p>
       <p>The physics are real: nothing slows you down except your own engines, which are weak for now, and gravity bends your path into an orbit. To land on Tal, brake to a stop low over the ground, then tap Hover and settle down slower than 3 m/s, level, on flat ground.</p>
       <dl class="keys" id="keysKb">
         <dt><kbd>W</kbd><kbd>S</kbd></dt><dd>Engine thrust up and down</dd>
@@ -119,6 +128,7 @@
         <dt><kbd>Space</kbd></dt><dd>Retro thrusters</dd>
         <dt><kbd>F</kbd><kbd>R</kbd></dt><dd>Hold prograde, hold retrograde</dd>
         <dt><kbd>G</kbd></dt><dd>Hover on the belly thrusters (low over Tal)</dd>
+        <dt><kbd>P</kbd></dt><dd>Flight computer: a course to Tal or back to Tumbledown</dd>
         <dt><kbd>,</kbd><kbd>.</kbd></dt><dd>Slow down, speed up time</dd>
         <dt><kbd>C</kbd><kbd>M</kbd></dt><dd>Cycle cameras, map view</dd>
         <dt><kbd>Enter</kbd></dt><dd>Request docking when offered, undock</dd>
@@ -135,6 +145,7 @@
         <dt><kbd>Roll</kbd></dt><dd>Hold to roll left or right</dd>
         <dt><kbd>Prograde</kbd></dt><dd>Point along or against your motion</dd>
         <dt><kbd>Hover</kbd></dt><dd>Low over Tal: belly thrusters for landing</dd>
+        <dt><kbd>Course</kbd></dt><dd>The flight computer flies you to Tal or back to Tumbledown</dd>
         <dt><kbd>Tap a marker</kbd></dt><dd>Turn to face Veyra, Tal, Tumbledown or your motion</dd>
         <dt><kbd>Time</kbd></dt><dd>Speed up or slow down time</dd>
         <dt><kbd>Chase</kbd></dt><dd>Switch to bridge or map (drag to rotate the map)</dd>
@@ -159,6 +170,30 @@
       <p id="dockedMsg">Opening the hangar…</p>
       <div class="go">
         <button class="launch" id="undockBtn" type="button">Undock</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="courseCard" class="overlay" hidden>
+    <div class="card" role="dialog" aria-labelledby="courseTitle">
+      <div>
+        <p class="sub">Flight computer</p>
+        <h2 class="wordmark" id="courseTitle">Course</h2>
+      </div>
+      <p id="courseMsg">The flight computer flies the trip with your engine and fuel, and warps time through the waits. Steer or touch the throttle to take over.</p>
+      <div class="go col" id="courseOpts"></div>
+    </div>
+  </div>
+
+  <div id="delivered" class="overlay" hidden>
+    <div class="card" role="dialog" aria-labelledby="delTitle" aria-describedby="delMsg">
+      <div>
+        <p class="sub">Delivery</p>
+        <h2 class="wordmark" id="delTitle"></h2>
+      </div>
+      <p id="delMsg"></p>
+      <div class="go">
+        <button class="launch" id="delOk" type="button">Close</button>
       </div>
     </div>
   </div>

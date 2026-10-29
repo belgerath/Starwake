@@ -19,7 +19,7 @@ export const HAULER = [[-55, -33], [-55, -63], [-31, -63], [-31, -33]];
 export const OFFICER = {home: [-30, -6], route: [[-30, -6], [-26, 2], [-22, 8]]};
 // Things standing on the floor, [x, z, radius]: walkers keep out of these circles (radius 0: walked through).
 export const SPOTS = {
-  checkpoint: [-37, -6, 5.5], factor: [44, -10, 4], containers: [56, -10, 9], yard: [-44, -48, 7],
+  checkpoint: [-37, -6, 5.5], factor: [44, -10, 4], containers: [56, -10, 9], yard: [-44, -48, 7], wright: [-38, -22, 5],
   talkE: [40, 36, 3], talkW: [-41, 31, 3], arch: [-27, 21, 0], backArch: [0, -70, 0],
 };
 

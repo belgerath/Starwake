@@ -5,16 +5,17 @@
 // Floating origin: W.world is placed at -S.pos every frame, so the ship is always at the render
 // origin and nearby geometry keeps full float precision. Physics stays in the universe frame.
 import * as THREE from 'three';
-import {R, ATM_TOP, MOON_R, MOON_A, MOON_INC, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, STATION, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
+import {R, ATM_TOP, MOON_R, MOON_A, SPIN, GM, RING_IN, RING_OUT, RING_H, SUN_I, SHIP, STATION, NPRED, ROCK_MAX, ROCK_CELL, ROCK_VIS, TAU, TAL_SEED, TAL_RELIEF} from './config.js';
 import {clamp, smooth, lin, glowTex, hash, makeNoise} from './util.js';
 import {scene, sunDir, sunLight, hemi, makeEnv, renderer, cam} from './engine.js';
 import {bake} from './bake.js';
 import {PLANET_H, PLANET_ALB, NORMAL_PASS, CLOUD_PASS, MOON_H, MOON_ALB, SURF_VERT, PLANET_FRAG, CLOUD_FRAG, ATMO_FRAG, RING_FRAG} from './shaders.js';
-import {S, O, ST, HB, lvlhQuat, qTilt, qTiltInv, eqN, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
+import {S, O, ST, HB, lvlhQuat, qTilt, qTiltInv, eqN, moonQ, omegaP, moonTh, predictPath, radialOut, sunlitFactor} from './physics.js';
 import {createTerrain} from './terrain.js';
 import {buildTransport} from './ship/transport.js';
 import {buildDestroyer} from './ship/destroyer.js';
 import {buildStation} from './station.js';
+import {buildOutposts} from './outposts.js';
 import {buildBridge} from './ship/bridge.js';
 
 const V3 = THREE.Vector3;
@@ -61,11 +62,12 @@ export function buildWorld() {
   const rg = new THREE.RingGeometry(RING_IN, RING_OUT, 720, 8); rg.rotateX(-Math.PI / 2);
   W.ringMat = new THREE.ShaderMaterial({uniforms: {center: {value: new V3()}, L: {value: sunDir}, ringN: {value: eqN.clone()}, Rp: {value: R}, Rin: {value: RING_IN}, Rout: {value: RING_OUT}, sunI: {value: SUN_I}, fade: {value: 1}}, vertexShader: SURF_VERT, fragmentShader: RING_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, extensions: {derivatives: true}});
   W.ring = new THREE.Mesh(rg, W.ringMat); W.ring.renderOrder = 3; W.tiltG.add(W.ring);
-  const moonPlane = new THREE.Group(); moonPlane.rotation.x = MOON_INC; W.tiltG.add(moonPlane);
+  const moonPlane = new THREE.Group(); moonPlane.quaternion.copy(qTiltInv).multiply(moonQ); W.tiltG.add(moonPlane); // = physics' moonQ
   W.moonPivot = new THREE.Group(); moonPlane.add(W.moonPivot);
   // W.moon is Tal's body frame (tal.js heights and talQuat() live here); the ground is terrain chunks in it.
   W.moon = new THREE.Group(); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);
   W.terrain = createTerrain(W.moon, mA.texture, mN.texture);
+  W.outposts = buildOutposts(W.moon); W.outpostTarget = null; // main.js sets the delivery's outpost
   const mpts = []; for (let i = 0; i <= 360; i++) { const a = i / 360 * TAU; mpts.push(new V3(MOON_A * Math.cos(a), 0, -MOON_A * Math.sin(a))); }
   W.moonLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(mpts), new THREE.LineBasicMaterial({color: 0x8ea2b6, transparent: true, opacity: 0.4, depthWrite: false})); W.moonLine.frustumCulled = false; moonPlane.add(W.moonLine);
   const og = new THREE.BufferGeometry(); og.setAttribute('position', new THREE.BufferAttribute(W.predPos, 3).setUsage(THREE.DynamicDrawUsage)); og.setDrawRange(0, 0);
@@ -98,6 +100,7 @@ export function updateWorld(dt, rt) {
   W.world.position.copy(S.pos).negate();
   W.spinG.rotation.y = SPIN * S.t; W.cloudMesh.rotation.y = -0.2 * SPIN * S.t; W.planet.material.uniforms.cloudDelta.value = -W.cloudMesh.rotation.y;
   W.moonPivot.rotation.y = moonTh(S.t);
+  W.outposts.update(rt, W.outpostTarget);
   const ship = W.ship;
   ship.root.quaternion.copy(S.quat); ship.setLegs(S.legs); ship.dish.rotation.y += dt * 0.8; ship.strobe.visible = (rt % 1.6) < 0.12; ship.nav[2].visible = (rt % 1.2) < 0.6;
   W.station.root.position.copy(ST.pos); lvlhQuat(ST, W.station.root.quaternion); W.station.update(S.t, S.bay, rt);

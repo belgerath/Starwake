@@ -43,6 +43,7 @@ export function initInput(actions) {
     if (e.code === 'KeyF') actions.toggleHold('pro');
     if (e.code === 'KeyR') actions.toggleHold('retro');
     if (e.code === 'KeyG') actions.toggleHover();
+    if (e.code === 'KeyP') actions.openCourses();
     if (e.code === 'Period') actions.warpStep(1);
     if (e.code === 'Comma') actions.warpStep(-1);
     if (e.code === 'KeyZ') S.throttle = 1;

@@ -212,6 +212,15 @@ function build() {
 
   // ---- light: little from anywhere but the opening above ----
   S.add(new THREE.HemisphereLight(lin(0xa08a6a), lin(0x2a2118), 1.0));
+  // ---- Brannoc's bench under the Mudlark's nose: a slab, an engine part on a stand, tools, a hooded work lamp ----
+  const [wx, wz] = SPOTS.wright, ironM = std(0x2a2826, null, 0.6, 0.55);
+  add(new THREE.BoxGeometry(4.2, 1, 1.6), std(0x4a4440, null, 0.3, 0.8), wx - 1.5, 0.5, wz, 0.5, S, {cast: true});
+  add(new THREE.CylinderGeometry(0.9, 1.1, 2.2, 6), ironM, wx + 1.8, 1.6, wz - 1.2, 0, S, {cast: true}).rotation.z = Math.PI / 2;
+  add(new THREE.BoxGeometry(0.4, 0.5, 1.4), ironM, wx + 1.8, 0.25, wz - 1.2, 0, S, {cast: true});
+  for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.5, 0.06, 0.08), ironM, wx - 2.6 + i * 0.5, 1.03, wz - 0.3 + (i % 2) * 0.4, 0.5 + i);
+  add(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6), ironM, wx - 3.4, 1.3, wz + 0.9);
+  add(new THREE.ConeGeometry(0.35, 0.4, 8, 1, true), ironM, wx - 3.1, 2.55, wz + 0.6);
+  const bench = new THREE.PointLight(0xffb070, 1.4, 14, 2); bench.position.set(wx - 3.1, 2.3, wz + 0.6); S.add(bench);
   const sun = new THREE.SpotLight(0xffe8c8, 3.4, 0, 0.36, 0.55); sun.position.set(0, HY - 1, 0); sun.target.position.set(0, 0, 0);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.near = 30; sun.shadow.camera.far = HY + 5; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   S.add(sun, sun.target);
@@ -221,6 +230,7 @@ function build() {
   for (const c of CAST) addAgent(c);
   H.people.customs = addAgent({look: 'proctor', h: 2.15, staff: true, mask: true, idle: OFFICER.home, face: [0, OFFICER.home[1]], key: 'customs'});
   H.people.trader = addAgent({look: 'factor', h: 1.95, hunch: 0.16, idle: [fx + 1.2, fz], face: [0, fz], key: 'trader'});
+  H.people.wright = addAgent({look: 'wright', h: 2.05, mask: true, hunch: 0.08, idle: [wx + 0.4, wz + 1.6], face: [0, 0], key: 'wright'});
   resize();
 }
 
@@ -302,7 +312,7 @@ const right = new THREE.Vector3();
 export function focus(key) {
   const a = H.people[key]; if (!a) return; const p = a.f.root.position;
   const yaw = key === 'customs' ? Math.atan2(p.x, p.z) : a.f.root.rotation.y;
-  Object.assign(goal, {on: true, yaw, pitch: key === 'trader' ? 0.3 : 0.1, dist: (key === 'trader' ? 6.5 : 6) + a.c.h}); goal.target.set(p.x, a.c.h * 0.62, p.z);
+  Object.assign(goal, {on: true, yaw, pitch: key === 'customs' ? 0.1 : 0.3, dist: (key === 'customs' ? 6 : 6.5) + a.c.h}); goal.target.set(p.x, a.c.h * 0.62, p.z);
   if (app.clientWidth > app.clientHeight) goal.target.add(right.set(Math.cos(yaw), 0, -Math.sin(yaw)).multiplyScalar(goal.dist * 0.3));
   else goal.target.y -= goal.dist * 0.2;
 }

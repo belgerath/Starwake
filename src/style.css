@@ -33,6 +33,10 @@ body{font-family:var(--f-ui);touch-action:none;-webkit-user-select:none;user-sel
 .unit{font-family:var(--f-num);font-size:11px;color:var(--ink-dim);margin-left:4px}
 .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:5px}
 .bar i{display:block;height:100%;width:0;background:var(--amber)}
+.ro.wide{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.ro.wide .bar{flex:1;margin-top:0}
+.ro.wide.low .lab,.ro.wide.low #fuelPct{color:var(--amber)}
+.ro.wide.low .bar i{background:#ff6a4a}
 .tr{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:var(--edge-r);display:grid;justify-items:end;gap:8px;pointer-events:none}
 .trrow{display:flex;gap:8px}
 .tr .btn{pointer-events:auto}
@@ -92,7 +96,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 #thrKnob{position:absolute;left:3px;right:3px;bottom:3px;height:38px;border-radius:19px;background:rgba(217,231,244,.22);border:1px solid rgba(217,231,244,.55)}
 #thrHover{position:absolute;left:-7px;right:-7px;bottom:0;height:2px;margin-bottom:-1px;background:var(--go);border-radius:1px;will-change:transform}
 .trk-lab{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-family:var(--f-display);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
-#intro,#crash,#docked{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
+#intro,#crash,#docked,#courseCard,#delivered{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding-left:var(--edge-l);padding-right:var(--edge-r);padding-block:20px;background:rgba(4,6,12,.5);overflow:auto;pointer-events:auto}
 .card{width:min(460px,100%);background:rgba(7,12,22,.88);border:1px solid var(--line);border-radius:6px;padding:24px 22px;display:grid;gap:18px}
 .sub{font-family:var(--f-display);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
 .wordmark{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:.08em;text-transform:uppercase;line-height:1.1;margin:0;text-wrap:balance}
@@ -105,8 +109,11 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
 .launch{font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-deep);background:var(--amber);border:0;border-radius:4px;height:48px;padding:0 26px;cursor:pointer}
 .launch:hover{filter:brightness(1.08)}
 .launch.alt{color:var(--amber);background:transparent;border:1px solid var(--amber)}
+.launch:disabled{opacity:.4;cursor:default;filter:none}
+.go.col{flex-direction:column;align-items:stretch;gap:8px}
+.go.col .why{margin:-2px 0 6px;font-size:14px}
 #status{font-family:var(--f-num);font-size:12px;color:var(--ink-dim)}
-#dbg{position:absolute;left:var(--edge-l);top:calc(176px + env(safe-area-inset-top,0px));max-width:calc(100% - 2 * var(--edge-l));font-family:var(--f-num);font-size:10px;line-height:1.4;color:var(--go);background:var(--panel);padding:3px 6px;border-radius:3px}
+#dbg{position:absolute;pointer-events:none;left:var(--edge-l);top:calc(198px + env(safe-area-inset-top,0px));max-width:calc(100% - 2 * var(--edge-l));font-family:var(--f-num);font-size:10px;line-height:1.4;color:var(--go);background:var(--panel);padding:3px 6px;border-radius:3px}
 /* Hangar: the view takes every gesture; info top-left, pause top-right, actions along the bottom, the card
    you talk through on the right (a sheet along the bottom on a narrow portrait screen). */
 #hangar{position:absolute;inset:0;z-index:1}
@@ -135,6 +142,9 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
 .hgQuote{color:var(--ink)!important;border-left:2px solid var(--amber);padding-left:12px}
 .hgOpts{display:grid;gap:8px}
 .hgOpts .launch{height:44px;padding:0 16px;text-align:left}
+.hgOpts .launch:disabled{opacity:.4;cursor:default}
+.hgOpts.grid{grid-template-columns:1fr 1fr}
+.hgOpts.grid .launch{height:auto!important;min-height:40px;padding:7px 10px;font-size:9px;letter-spacing:.08em;line-height:1.4}
 .hgFade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
 .hgFade.out{animation:hgFade .8s ease-out}
 @keyframes hgFade{from{opacity:1}to{opacity:0}}
@@ -148,7 +158,7 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
   .hgCard{top:auto;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:none;max-height:calc(100% - 240px)}
   #hangar.talking .hgBar .chip{display:none}
 }
-@media (max-height:520px){#dbg{top:calc(150px + env(safe-area-inset-top,0px))}}
+@media (max-height:520px){#dbg{top:calc(170px + env(safe-area-inset-top,0px))}}
 @media (max-height:520px){
   .readouts{gap:5px 12px;padding:7px 10px}
   .val{font-size:16px}.val.sm{font-size:13px}
@@ -157,18 +167,20 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
   .chip{height:32px}.chip.sq{width:32px}
   .card{gap:12px;padding:16px}
   .wordmark{font-size:22px}
-  .cue.ask #dockAskText{display:none}
+  .cue.ask #dockAskText,.cue.ask #tugAskText{display:none}
+  .hgOpts .launch{font-size:11px;letter-spacing:.08em}.hgOpts.grid .launch{min-height:32px;letter-spacing:.05em}
 }
 /* Narrow portrait: tighter readouts so they stay clear of the camera buttons; cue and debug line below them. */
 @media (max-width:420px){
   .readouts{gap:7px 8px;padding:9px 9px}
   .tr .btn{padding:0 10px}
   .lab{font-size:7.5px;letter-spacing:.1em}
+  .cue.ask #tugAskText{display:none}
   .val{font-size:17px}.val.sm{font-size:13px}.unit{font-size:10px;margin-left:3px}
 }
 @media (max-width:600px) and (min-height:521px){
-  .cue{left:var(--edge-l);transform:none;top:calc(162px + env(safe-area-inset-top,0px))}
+  .cue{left:var(--edge-l);transform:none;top:calc(184px + env(safe-area-inset-top,0px))}
   .cue.ask{right:var(--edge-l)}
-  #dbg{top:calc(206px + env(safe-area-inset-top,0px))}
+  #dbg{top:calc(228px + env(safe-area-inset-top,0px))}
 }
 @media (prefers-reduced-motion:reduce){#toast{transition:none}.cue.now{animation:none}}

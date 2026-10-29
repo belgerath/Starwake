@@ -17,7 +17,9 @@ export const FLOOR = 15e3;         // hard deck until landing exists
 export const MOON_R = 1.64e6;
 export const GM_M = 4.03e12;
 export const MOON_A = 4.2e7;       // orbit radius
-export const MOON_INC = 0.09;      // orbit inclination to Veyra's equator
+// Tal, Tumbledown, the Halberd and the start orbit share one plane, tilted this far (radians) from Veyra's
+// equator, so the ring is seen at an angle and trips between them need no change of plane.
+export const ORBIT_INC = 0.33;
 export const SOI_M = MOON_A * Math.pow(GM_M / GM, 0.4);
 export const MOON_N = Math.sqrt((GM + GM_M) / Math.pow(MOON_A, 3));
 // Tal's terrain. MOON_H (GPU bake) and tal.js (JS, for meshes and collision) both use these.
@@ -66,6 +68,7 @@ export const TRANSPORT = {
   name: 'Mudlark', length: 35, mass: 4e5, cda: 150, // drag coefficient × frontal area (m²)
   aMain: 4, aBoost: 8, aRetro: 1,  // m/s²: main engine at full throttle (along the nose), Boost, retro thrusters (Space)
   aLift: 4,                        // m/s²: belly lift thrusters at full throttle, in hover mode
+  tank: 20e3,                      // fuel, as the speed change it buys (m/s): generous, a trip to Tal and back is about 12 km/s
   // Rotation [pitch, yaw, roll]: rate is the top turn rate (rad/s), acc how fast thrusters start and stop a turn (rad/s²).
   rate: [0.17, 0.14, 0.24], acc: [0.45, 0.4, 0.6],
   stand: [0, 1, 0],                // lands belly-down: this axis points up when standing on the gear
@@ -104,6 +107,19 @@ export const STATION = {
   bay: {w: 160, h: 90, depth: 260}, wings: {z: -380, x0: 200, x1: 1100, h: 160}, dish: {z: -540, r: 120},
   pad: [0, -39, 300], approach: [0, -20, 1000], // ship centres: on the pad (gear on the bay floor), and the holding point behind the bay
 };
+
+// Outposts on Tal, where deliveries go: latitude and longitude in Tal's body frame (degrees; longitude 180
+// faces Veyra), on ground that stays under 2.5° of slope for a kilometre round. A delivery counts when the
+// ship lands within OUTPOST_RANGE of one. Near the equator, so the orbit the courses arrive on passes over them.
+export const OUTPOSTS = {
+  kessit: {name: 'Kessit Deep', lat: 1, lon: 176.75, about: 'A mining camp in a basin on the side facing Veyra.'},
+  onn: {name: 'Onn Basin', lat: -2.25, lon: 32.25, about: 'Water pumps and a cistern, on the far side.'},
+  harrow: {name: 'Harrow Rise', lat: 2, lon: 259, about: 'A relay mast on a plateau, behind Tal as it goes round.'},
+  tessaly: {name: 'Tessaly Flats', lat: 0, lon: 340.5, about: 'A salvage yard on the flats.'},
+};
+export const OUTPOST_RANGE = 3000;
+// Direction of an outpost from Tal's centre, in Tal's body frame (unit vector as [x, y, z]).
+export const outpostDir = o => { const la = o.lat * Math.PI / 180, lo = o.lon * Math.PI / 180; return [Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo)]; };
 
 // Landing on Tal, belly-down on the landing gear.
 export const LEG_TIME = 3;         // seconds to lower or raise the gear
