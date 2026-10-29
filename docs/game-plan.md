@@ -4,12 +4,12 @@ Where the game goes next: the world, what you do in it, and the order to build i
 
 ## The game in a paragraph
 
-You fly the Mudlark, a small, tired transport ship about 35 m long (think of the Millennium Falcon), with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: Tumbledown, a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a vast, dark hangar, sell the cargo to a broker who never met you, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
+You fly the Mudlark, a small transport ship about 35 m long, black and angular in the Harkonnen manner, with a hold full of contraband and a couple of small guns for defence. It starts slow and clumsy. First stop: Tumbledown, a huge station in orbit around Veyra where outcasts and misfits trade with no questions asked, or not many. Get close, ask to dock, and the station brings you in. Clear an easy customs check in a vast, dark hangar, sell the cargo to a broker who never met you, and spend the money making the ship faster, tougher and better armed. Then take the next job. Everything flies for real: real orbits, real distances, a real planet and moon.
 
 ## Pillars
 
 1. **Real scale, real physics.** No speed limits, no fake drag, no shrunken planets. The ship starts weak, so orbits and thrust matter from the first minute.
-2. **A small ship in a big place.** 35 m of patched-up freighter next to a station kilometres across, a navy destroyer ten times your length, a planet underneath.
+2. **A small ship in a big place.** 35 m of black freighter next to a station kilometres across, a navy destroyer ten times your length, a planet underneath.
 3. **Dark and heavy.** Dune more than Star Wars: monumental halls in haze, one shaft of light, robed and masked figures, terse people with something to hide. No neon, no jokes in the writing.
 4. **Phone first.** Everything works with thumbs, in portrait and landscape, in 10 to 20 minute sessions. The hard parts (docking, aiming) have help.
 5. **Every phase ships.** Each phase ends with something new to play on the phone.
@@ -100,7 +100,7 @@ Done when: fly the new ship from orbit and land it on Tal, on the phone.
 
 What was built:
 - `TRANSPORT` in `config.js`: everything about the ship as data (thrust, turn rates, gear height, contact points, camera framing), read by physics, camera, HUD and model, so upgrades can change it later. Main engine 4 m/s², Boost 8, lift thrusters 4, turns at about 10°/s.
-- The model (`src/ship/transport.js`): a saucer hull 24 m across with two cargo prongs (35 m long in all), a cockpit pod on the right, an engine band glowing across the back with a sheet of flame, four lift thrusters and four gear legs under the belly, small turrets top and bottom, a radar dish, worn panels with a few rust patches. The Halberd's model stays in the code for phase 2.
+- The model (`src/ship/transport.js`): a saucer hull 24 m across with two cargo prongs (35 m long in all), a cockpit pod on the right, an engine band glowing across the back with a sheet of flame, four lift thrusters and four gear legs under the belly, small turrets top and bottom, a radar dish, worn panels with a few rust patches. The Halberd's model stays in the code for phase 2. (Rebuilt after phase 3: see the visual pass.)
 - Hover mode: a Hover button (G on a keyboard) low over Tal. The slider becomes lift, with a mark at hover (about 37%). Let go of the stick and the ship levels itself, leaning against drift until it stops; steer to tilt and move. Switched on nose-up after braking, the main engine carries part of the thrust while the ship swings level, so it does not drop.
 - Belly-down landing: the gear comes down below 1.5 km; touchdown limits as before, with tilt measured from level. The touchdown light says "Hover to land" until hover is on.
 - The braking cue now works from 60 km down and checks the ground along the whole burn: with a weak engine, braking from orbit takes minutes and covers hundreds of kilometres, and the first version only looked at the ground where the ship would stop (a test caught it hitting a ridge on the way).
@@ -119,7 +119,7 @@ Done when: start, approach, dock and undock again.
 
 What was built:
 - `STATION` and `PATROL` in `config.js`: the station's size, orbit, bay, docking range and pad as data. The ship is the Mudlark, the station Tumbledown.
-- Tumbledown (`src/station.js`): a hub 900 m long with the bay at its back end, a wheel 2.6 km across turning once every 72 s (about 1 g at the rim), mismatched shacks and 2,600 lit windows on the wheel, solar wings with patched panels, a dish, blinking red beacons, a neon sign ("Berths · trade · no questions asked") and bay 3: a lit hangar 160 by 90 m and 260 m deep with crates, a pad and two doors that slide open. Guide lights run in toward the bay.
+- Tumbledown (`src/station.js`): a hub 900 m long with the bay at its back end, a wheel 2.6 km across turning once every 72 s (about 1 g at the rim), mismatched shacks and 2,600 lit windows on the wheel, solar wings with patched panels, a dish, blinking red beacons, a neon sign ("Berths · trade · no questions asked") and bay 3: a lit hangar 160 by 90 m and 260 m deep with crates, a pad and two doors that slide open. Guide lights run in toward the bay. (Rebuilt brutalist after phase 3: see the visual pass.)
 - Orbits: Tumbledown at 403 km, 25 km ahead of the start and drifting closer; the Halberd on a 420 km patrol orbit 70 km ahead, which the Mudlark overtakes, passing 10 to 25 km from it. Both move under the same gravity as the ship (Tal's tides too), so a ship that matches them stays matched. The station keeps its dish forward along the orbit and the bay facing back, toward the start.
 - Docking: within 10 km and slower than 50 m/s relative, "Request docking" and "Not now" appear (time warp drops to 1× so the offer is not missed; Enter on a keyboard). Not now hides it until you leave that range; after undocking it waits until you are 3 km out. Station control flies the run: brakes, goes round the station if you are in front of it, lines up 1 km behind it, opens the doors, flies in at about 12 m/s and sets down on the pad with the gear down. The doors close and a card says you are docked. Docked, the ship is fixed in the station's frame at any time warp. Undock opens the doors, backs out, turns around once clear and lets go at 3 m/s, nose first. Time warp up to 100× during the run.
 - Collision with the station's hub, wheel (turning spokes too), wings and dish, as shapes: hitting it is a crash, with the speed on the card.
@@ -146,6 +146,14 @@ What was built (first with cartoon CC0 models, then rebuilt darker at Craig's re
 - Sound (`src/sound.js`, Web Audio, no files): the main engine's rumble, the lift thrusters, thruster hiss, the bay doors, a docking chime and clunk, a landing clunk, the crash, a double beep at "Brake now"; in the hangar a low drone, rumble and moving air with distant metal clanks echoing, the Proctor's seal, the sale's low struck tone. On after the first tap; Sound on and off on the pause card.
 - Saving now keeps credits, the hold and the first run's progress too.
 - Tests: the first run's rules (customs, the tip, haggling, selling, the save) and the walking paths.
+
+### Visual pass (done)
+
+After the hangar, the rest of what you see was brought into the same dark look (Craig: "more Dune esque").
+
+- The Mudlark (`src/ship/transport.js`), Harkonnen-style: a faceted black hull lofted through angular sections from a knife-edge nose to a broad stern (the sections are data in `TRANSPORT.sections`, and the crash points follow them), swept blades along the spine, spikes off the chines, swept fins, a raised cockpit with a slit of red light, three hexagonal engines glowing orange, slits of light along the flanks. Rough, barely metallic plate, so it stays black in a low sun. Same size, handling, gear and contact rules.
+- Tumbledown (`src/station.js`), same shape rebuilt brutalist, so docking and collisions are unchanged: an octagonal concrete hub with collars, fins, monolithic blocks and slit windows, a spire forward; a concrete wheel ribbed like a spine with habitation blocks and slit windows; dark radiator slabs instead of solar wings; the neon sign and painted shacks gone.
+- Bay 3 seen from space is now the hangar's hall: the same concrete, buttresses and lamp niches, banners, BAY 3 cut into the back wall, and the shaft of light on the pad (shared textures and shader in `src/textures.js`). It is unlit like the hangar, with painted-on light and haze, so the docking run leads straight into what the hangar shows. (The old bay also hid its back half behind a solid collar of the hub; the collars are open rings now.)
 
 ### Phase 4: Upgrades and jobs
 
@@ -183,7 +191,7 @@ The rest of the system, then other stars.
 
 Confirmed by Craig:
 
-1. **Premise:** a smuggler in a small transport ship (about 35 m, like the Millennium Falcon) carrying contraband, with small guns for defence; poor speed and handling at first, upgradable.
+1. **Premise:** a smuggler in a small transport ship (about 35 m, first like the Millennium Falcon, now black and angular) carrying contraband, with small guns for defence; poor speed and handling at first, upgradable.
 2. **First mission:** dock at a huge station for outcasts and misfits and trade the contraband.
 3. **Docking:** get close, accept "Request docking?", and the station flies you into an opening bay.
 4. **Customs:** an easy check in the hangar; then the game opens up from there.
@@ -194,12 +202,15 @@ Confirmed by Craig:
 9. **Fuel:** generous (from the earlier plan).
 10. **Names:** the ship is the Mudlark, the station Tumbledown.
 11. **Docking offer:** within 10 km and under 50 m/s relative.
-12. **Tone:** dark, heavy science fiction, like Dune: terse and ominous writing. The hangar first; Tumbledown's outside gets the same treatment later.
+12. **Tone:** dark, heavy science fiction, like Dune: terse and ominous writing. The hangar first, then Tumbledown's outside and the ship.
+13. **The Mudlark's look:** Harkonnen-style: black, angular, heavy, spiked; same size and handling.
+14. **Tumbledown's look:** the same shape rebuilt brutalist (dark ribbed stone and metal, slit windows; no neon, no painted shacks).
+15. **First jobs:** deliveries to Tal outposts, with upgrades and fuel bought at the station.
 
 Still to confirm (recommendations):
 
-13. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
-14. **Ship and station models** built from shapes in code (like the Halberd).
-15. **Combat** with aim assist (the guns lead the target; you choose when to fire).
+16. **Starting engine** about 4 m/s², so Veyra needs an upgrade.
+17. **Ship and station models** built from shapes in code (like the Halberd).
+18. **Combat** with aim assist (the guns lead the target; you choose when to fire).
 
 Next: phase 4, upgrades and jobs.

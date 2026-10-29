@@ -1,6 +1,6 @@
 # Starwake
 
-A 3D space exploration game with real-scale, Newtonian flight. You fly the Mudlark, a small, battered transport (about 35 m, Millennium Falcon style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal, and dock at Tumbledown, a huge station for outcasts and misfits, where a vast, dark hangar, an easy customs check and a broker end the first run. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
+A 3D space exploration game with real-scale, Newtonian flight. You fly the Mudlark, a small transport (about 35 m, black and angular, Harkonnen style) with contraband in the hold, around Veyra (an Earth-sized ringed planet) and its moon Tal, and dock at Tumbledown, a huge station for outcasts and misfits, where a vast, dark hangar, an easy customs check and a broker end the first run. Built with three.js and Vite, no framework. Craig plays it mostly on his phone (often landscape), and sometimes on a desktop with keyboard and mouse. Both have to work.
 
 ## Commands
 
@@ -21,16 +21,17 @@ Before finishing any change: `npm test` passes, `npm run build` succeeds, and th
 
 | File | Responsibility |
 |---|---|
-| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, terrain, landing limits, ships as data: `TRANSPORT` (the Mudlark: thrust, turn rates, gear, contact points, camera framing; `SHIP` is the one the player flies) and `HALBERD` (its model), `STATION` (Tumbledown: orbit, size, bay, docking range, pad) and `PATROL` (the Halberd's orbit). Plain numbers, no three.js (the terrain worker imports it). |
+| `src/config.js` | All constants, in SI units (metres, seconds). Planet, moon, ring, terrain, landing limits, ships as data: `TRANSPORT` (the Mudlark: thrust, turn rates, gear, hull sections and contact points, camera framing; `SHIP` is the one the player flies) and `HALBERD` (its model), `STATION` (Tumbledown: orbit, size, bay, docking range, pad) and `PATROL` (the Halberd's orbit). Plain numbers, no three.js (the terrain worker imports it). |
 | `src/physics.js` | Flight model. **No DOM, no rendering.** State `S`, orbital readouts `O`, `stepFlight(dt, input)`, holds, hover mode (`setHover`), warp limits, orbit prediction, Tal's spin and ground-relative readouts, braking cue, landing (contact points, touchdown rules, landed state, take-off, crash checkpoint). Tumbledown `ST` and the Halberd `HB` (stepped under the same gravity, `lvlhQuat` for their attitude, `ringAngle` for the wheel), collision with the station, docking (`requestDock`, `startUndock`, the run as paths in the station's frame), `snapshot`/`restore` (checkpoint and save). Reads the ship from `SHIP`. |
 | `src/engine.js` | Renderer, cameras, sky scene and sun, lights (the sun's shadow box is sized to the ship), environment map. |
 | `src/sky.js` | Stars (realistic brightness and colour spread), the Milky Way glow (baked once), and the exposure that dims them when something bright fills the view. |
 | `src/bake.js`, `src/shaders.js` | GPU-generated cube maps (planet height, colour, normals, clouds; moon) and the per-frame shaders (surface, clouds, atmosphere, ring). |
 | `src/noise.js`, `src/tal.js` | JS port of the GLSL noise, and Tal's height in metres (`talHeight` = the bake's `talBase` plus `talDetail`, small craters and roughness that exist only in JS). For terrain meshes, collision and radar altitude. No DOM, so a Web Worker can use them. |
 | `src/world.js` | Builds and updates everything drawn in the universe, plus ring rocks and the map-view orbit line. Places Tumbledown and the Halberd, and dims the sun inside the bay. |
-| `src/station.js` | Tumbledown's model, built from primitives in metres: hub, bay 3 (hangar, pad, crates, sliding doors), the turning wheel with shacks and windows, wings, dish, sign, beacons and guide lights. `update(t, bay, rt)` turns the wheel, moves the doors and blinks the lights. |
+| `src/station.js` | Tumbledown's model, brutalist, built from primitives in metres: an octagonal concrete hub with collars, fins, blocks and slit windows, a spire; bay 3 behind sliding doors, inside like the hangar (unlit concrete, buttresses, lamp niches, banners, the shaft of light on the pad); the turning wheel of ribbed concrete with blocks and slit windows; radiator slabs; beacons and guide lights. `update(t, bay, rt)` turns the wheel, moves the doors and blinks the lights. |
+| `src/textures.js` | Canvas textures and the light shaft shader shared by bay 3 seen from space (`station.js`) and the hangar, so the two are the same place: concrete, ribbed metal, banners, carved letters, painted-on light (`wash`), `lightShaft`. |
 | `src/terrain.js`, `src/terrain-build.js`, `src/terrain-worker.js` | Tal's ground: cube-sphere quadtree of chunks that refine as the camera gets closer. Chunks are built from `talHeight` in Web Workers; `terrain-build.js` is pure so tests can check it. |
-| `src/ship/transport.js` | The player's ship, built from primitives in metres: saucer hull, cargo prongs, cockpit pod, engine band, lift thrusters, landing gear (`setLegs`), two small turrets. |
+| `src/ship/transport.js` | The player's ship, built from primitives in metres: a faceted black hull lofted through `TRANSPORT.sections`, blades along the spine, spikes, swept fins, a cockpit block with a red slit, three hexagonal engines, lift thrusters, landing gear (`setLegs`), two turrets, a sensor mast. |
 | `src/ship/destroyer.js` | The Halberd, the navy's destroyer (on patrol, just flying for now), in ship units (×`HALBERD.scale` = metres). Also exports the hull panel textures and box helpers both models use. |
 | `src/ship/bridge.js` | Cockpit interior (its own scene and camera) and its live screens and dials. |
 | `src/camera.js` | Chase, cockpit and map views; chase blends into a landing view while the gear is down. |
@@ -50,6 +51,7 @@ Key ideas:
 - **Render order** per frame: sky scene (no depth), clear depth, main scene, then the bridge scene (only in bridge view) over it.
 - **Log depth buffer** is on (near 0.5 m, far 2e10 m). Custom shaders must include the `logdepthbuf` chunks (see `SURF_VERT` and the `*_FRAG` shaders).
 - **The hangar replaces space while docked**: its own scene and camera, drawn instead of the space render (physics keeps stepping, so the station and the Halberd move on). Its code and models are a separate chunk fetched when docking starts, so they are usually in by the time the doors close; until then the docked card shows progress (or why it failed, with Undock).
+- **Bay 3 seen from space** is unlit (`MeshBasicMaterial`) with painted-on light and haze, like the hangar, so the sun never lights its inside and the docking run leads into what the hangar shows.
 - **The hangar's lighting** is dark on purpose: one shadow-casting spot light from the opening in the roof, a cold spot on the checkpoint, the Factor's lantern, fog, and painted-on light (additive washes on the walls and floor) instead of more real lights, so it stays cheap on a phone. The light shaft is a custom `ShaderMaterial`, so it includes the `logdepthbuf` chunks.
 - **three.js is pinned to 0.128.0.** The code uses `outputEncoding`, `sRGBEncoding` and other pre-r152 APIs. Upgrading is a deliberate task, not a side effect.
 - `ringDens()` in `RING_FRAG` and `ringDensJS()` in `world.js` describe the same ring profile and must stay in sync.
@@ -102,7 +104,6 @@ Key ideas:
 - Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
 - Credits and cargo exist for the first run only: no jobs, upgrades or fuel yet. Landing only on Tal.
 - The hangar is a view, not a place to walk; the crowd follows set loops and can pass through each other.
-- Tumbledown's outside still has the first, brighter look (a neon sign, painted shacks); it gets the hangar's darker treatment in a later pass.
 - The Halberd only flies; it does not scan or react yet.
 - The cockpit view reuses the old destroyer bridge interior, which is roomier than the transport's pod.
 
@@ -113,5 +114,5 @@ You fly a **small smuggler's transport** with contraband in the hold and small g
 1. **Landing on Tal**: works. Built in `docs/tal-landing-plan.md` (for the Halberd), then moved to the transport.
 2. **The new ship**: done (phase 1): the model, weak handling as data, hover mode, belly-down landing on Tal.
 3. **The station and docking**: works (phase 2): Tumbledown, "Request docking", automatic docking into bay 3 and undocking, the Halberd on patrol, saving.
-4. **The hangar**: works (phase 3, rebuilt darker): bay 3 as a vast hall in haze with one shaft of light, robed figures, customs with Proctor Vey, selling the ashroot to the Factor, first sounds; the first mission end to end.
+4. **The hangar**: works (phase 3, rebuilt darker): bay 3 as a vast hall in haze with one shaft of light, robed figures, customs with Proctor Vey, selling the ashroot to the Factor, first sounds; the first mission end to end. Then a visual pass: the Mudlark black and angular, Tumbledown brutalist, bay 3 from space matching the hangar.
 5. **Upgrades and jobs**, then **trouble** (navy scans, raiders, fights), then **Veyra** (re-entry, landing at cities), then further out.
