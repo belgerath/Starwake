@@ -11,7 +11,7 @@ import {buildSky, updateSky} from './sky.js';
 import {updateBridge} from './ship/bridge.js';
 import {updateCamera, snapCamera} from './camera.js';
 import {initInput, readInput, IN} from './input.js';
-import {updateSound, sfx, soundOn, setSound} from './sound.js';
+import {updateSound, sfx, soundOn, setSound, soundDebug} from './sound.js';
 import {initHud, initMarkers, updateHud, updateMarkers, refreshUI, toast, setStatus, setReady, hideIntro, showIntro, showCrash, hideCrash, setDockAsk, setDocked} from './hud.js';
 
 let ready = false, crashShown = false, dockDeclined = false, quietOut = 0, askShown = false, wasDocked = false, saveT = 0;
@@ -142,7 +142,7 @@ setTimeout(() => { // let the intro card paint before the GPU bakes the planet
   addEventListener('visibilitychange', () => { if (document.hidden && S.launched) saveGame(); });
   addEventListener('pagehide', () => { if (S.launched) saveGame(); });
   if (new URLSearchParams(location.search).has('debug')) {
-    window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo, hangar: () => HG};
+    window.starwake = {S, O, ST, HB, actions, W, cam, talAgl, talGroundVel, moonPos, orbInfo, hangar: () => HG, sound: soundDebug};
     dbg = document.createElement('div'); dbg.id = 'dbg'; document.getElementById('hud').appendChild(dbg);
   }
   requestAnimationFrame(frame);
