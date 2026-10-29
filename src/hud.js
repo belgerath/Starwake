@@ -97,7 +97,7 @@ export function showCrash(msg, canRetry) {
 }
 export function hideCrash() { $('crash').hidden = true; $('retryBtn').blur(); $('orbitBtn').blur(); }
 // The tug offer while the tanks are dry; the delivery card on landing at the job's outpost.
-export function setTugAsk(on) { const el = $('tugAsk'); if (el.hidden === !on) return; el.hidden = !on; $('tugYes').textContent = `Call a tug, ${TUG} credits`; }
+export function setTugAsk(on) { const el = $('tugAsk'); if (el.hidden === !on) return; el.hidden = !on; $('tugYes').textContent = `Call a tug · ${TUG}`; }
 export function showDelivered(title, text) { $('delTitle').textContent = title; $('delMsg').textContent = text; $('delivered').hidden = false; $('delOk').focus({preventScroll: true}); }
 export function hideDelivered() { $('delivered').hidden = true; $('delOk').blur(); }
 // The course card: the trips on offer (or why not), Cancel course while one is flying, Close.

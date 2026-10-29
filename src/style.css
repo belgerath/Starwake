@@ -113,7 +113,7 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
 .go.col{flex-direction:column;align-items:stretch;gap:8px}
 .go.col .why{margin:-2px 0 6px;font-size:14px}
 #status{font-family:var(--f-num);font-size:12px;color:var(--ink-dim)}
-#dbg{position:absolute;left:var(--edge-l);top:calc(198px + env(safe-area-inset-top,0px));max-width:calc(100% - 2 * var(--edge-l));font-family:var(--f-num);font-size:10px;line-height:1.4;color:var(--go);background:var(--panel);padding:3px 6px;border-radius:3px}
+#dbg{position:absolute;pointer-events:none;left:var(--edge-l);top:calc(198px + env(safe-area-inset-top,0px));max-width:calc(100% - 2 * var(--edge-l));font-family:var(--f-num);font-size:10px;line-height:1.4;color:var(--go);background:var(--panel);padding:3px 6px;border-radius:3px}
 /* Hangar: the view takes every gesture; info top-left, pause top-right, actions along the bottom, the card
    you talk through on the right (a sheet along the bottom on a narrow portrait screen). */
 #hangar{position:absolute;inset:0;z-index:1}
@@ -144,7 +144,7 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
 .hgOpts .launch{height:44px;padding:0 16px;text-align:left}
 .hgOpts .launch:disabled{opacity:.4;cursor:default}
 .hgOpts.grid{grid-template-columns:1fr 1fr}
-.hgOpts.grid .launch{height:auto!important;min-height:40px;padding:7px 10px;font-size:9px;line-height:1.4}
+.hgOpts.grid .launch{height:auto!important;min-height:40px;padding:7px 10px;font-size:9px;letter-spacing:.08em;line-height:1.4}
 .hgFade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
 .hgFade.out{animation:hgFade .8s ease-out}
 @keyframes hgFade{from{opacity:1}to{opacity:0}}
@@ -167,13 +167,15 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
   .chip{height:32px}.chip.sq{width:32px}
   .card{gap:12px;padding:16px}
   .wordmark{font-size:22px}
-  .cue.ask #dockAskText{display:none}
+  .cue.ask #dockAskText,.cue.ask #tugAskText{display:none}
+  .hgOpts .launch{font-size:11px;letter-spacing:.08em}.hgOpts.grid .launch{min-height:34px}
 }
 /* Narrow portrait: tighter readouts so they stay clear of the camera buttons; cue and debug line below them. */
 @media (max-width:420px){
   .readouts{gap:7px 8px;padding:9px 9px}
   .tr .btn{padding:0 10px}
   .lab{font-size:7.5px;letter-spacing:.1em}
+  .cue.ask #tugAskText{display:none}
   .val{font-size:17px}.val.sm{font-size:13px}.unit{font-size:10px;margin-left:3px}
 }
 @media (max-width:600px) and (min-height:521px){

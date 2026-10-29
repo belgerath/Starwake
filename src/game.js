@@ -22,9 +22,9 @@ export const PEOPLE = {
 // What Brannoc fits: each part has levels, the first what the Mudlark starts with (from TRANSPORT in config.js).
 // v is the part's value at that level (applyShip sets the ship's numbers from it).
 export const PARTS = {
-  engine: {name: 'Main engine', unit: 'm/s²', levels: [{v: SHIP.aMain}, {v: 5.5, price: 1200}, {v: 7.5, price: 2800}]},
-  lift: {name: 'Lift thrusters', unit: 'm/s²', levels: [{v: SHIP.aLift}, {v: 5, price: 600}, {v: 6.5, price: 1500}]},
-  turn: {name: 'Attitude jets', unit: '× turn rate', levels: [{v: 1}, {v: 1.3, price: 500}, {v: 1.6, price: 1200}]},
+  engine: {name: 'Engine', unit: 'm/s²', levels: [{v: SHIP.aMain}, {v: 5.5, price: 1200}, {v: 7.5, price: 2800}]},
+  lift: {name: 'Lift', unit: 'm/s²', levels: [{v: SHIP.aLift}, {v: 5, price: 600}, {v: 6.5, price: 1500}]},
+  turn: {name: 'Turning', unit: '×', levels: [{v: 1}, {v: 1.3, price: 500}, {v: 1.6, price: 1200}]},
   hold: {name: 'Hold', unit: 'crates', levels: [{v: 8}, {v: 12, price: 700}, {v: 16, price: 1600}]},
   tanks: {name: 'Tanks', unit: 'km/s', levels: [{v: SHIP.tank / 1000}, {v: 26, price: 500}, {v: 34, price: 1200}]},
 };
@@ -104,10 +104,10 @@ export function talk(key) {
   }
   if (key === 'wright') {
     const opts = [], cost = fuelCost();
-    if (cost > 0) opts.push({id: 'fuel', label: `Fill the tanks, ${cr(cost)} credits`, main: true, off: cost > G.credits});
+    if (cost > 0) opts.push({id: 'fuel', label: `Fill the tanks · ${cr(cost)}`, main: true, off: cost > G.credits});
     for (const [k, p] of Object.entries(PARTS)) {
       const next = p.levels[G.parts[k] + 1];
-      if (next) opts.push({id: 'up-' + k, label: `${p.name}: ${next.v} ${p.unit}, ${cr(next.price)}`, off: next.price > G.credits});
+      if (next) opts.push({id: 'up-' + k, label: `${p.name} ${next.v}${p.unit === '×' ? '×' : ' ' + p.unit} · ${cr(next.price)}`, off: next.price > G.credits});
     }
     opts.push({id: 'close', label: 'Not now', main: !opts.length});
     const quote = opts.length > 1 ? 'She flies. Barely. What do you want?' : 'Nothing left to fit. She is as good as I can make her.';
@@ -125,7 +125,7 @@ export function talk(key) {
   }
   if (G.job) return card(key, 'The Factor does not look up.', `${OUTPOSTS[G.job.to].name} is waiting for its ${CARGO[G.job.cargo].name}. So am I.`, close);
   const free = holdSize() - used();
-  const opts = jobsOnOffer().map(j => ({id: j.id, label: `${OUTPOSTS[j.to].name}: ${crateTxt(j.crates)} of ${CARGO[j.cargo].name}, ${cr(j.pay)}`, off: j.crates > free}));
+  const opts = jobsOnOffer().map(j => ({id: j.id, label: `${OUTPOSTS[j.to].name} · ${j.crates} ${CARGO[j.cargo].name} · ${cr(j.pay)}`, off: j.crates > free}));
   opts.push({id: 'close', label: 'Not now'});
   return card(key, 'The Factor slides a list across the table. Outposts on Tal, crates, prices.', 'Paid on delivery. Land within three kilometres of the outpost. Lose the cargo and you owe me.', opts);
 }

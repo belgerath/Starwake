@@ -114,23 +114,22 @@ export function startCourse(dest) {
   C = {dest, phase: '', text: '', lastHold: undefined, lastThrottle: undefined, lastWarp: undefined, userWarp: 3, tries: 0};
   S.hover = false;
   if (dest === 'tal') phase('plan', {gen: planTal()});
-  else if (O.dom === 1) phase(talTilt() > LEVEL_TOL ? 'level' : 'plan', {gen: planReturn()}); // planReturn starts when first run
+  else if (O.dom === 1) phase(talTilt() > LEVEL_TOL ? 'level' : 'plan', {gen: planReturn()}); // the plan runs after any levelling
   else phase('intercept');
   return '';
 }
 export function cancelCourse(msg) { if (!C) return; C = null; S.hold = null; S.throttle = 0; if (msg) tell('course', msg); }
 export const courseActive = () => !!C;
-// For the HUD: which course, and what it is doing ('' when none).
+// For the HUD: which course, and what it is doing (null when none).
 export function courseStatus() { return C ? {dest: C.dest, text: C.text} : null; }
 
 function phase(name, extra = {}) { Object.assign(C, {phase: name, t0: S.t, fuel0: S.fuel, userWarp: 3, pred: null}, extra); }
 function done(msg) { C = null; S.hold = null; S.throttle = 0; tell('course', msg); }
-function fail(msg) { done(msg); }
 
 // ---- the frame step ----
 export function stepCourse(dt) {
   if (!C) return;
-  if (S.crash || S.landed || (S.dock && C.phase !== 'docking')) { C = null; return; }
+  if (S.crash || S.landed || S.dock) { C = null; return; }
   // The pilot took over: the stick drops the hold (stepFlight), or the throttle moved.
   if ((C.lastHold !== undefined && S.hold !== C.lastHold) || (C.lastThrottle !== undefined && Math.abs(S.throttle - C.lastThrottle) > 1e-6)) { cancelCourse('Course cancelled. You have the controls.'); return; }
   if (C.lastWarp !== undefined && S.warpIdx !== Math.min(C.lastWarp, maxWarpIdx())) C.userWarp = S.warpIdx; // the pilot chose a time warp: no faster this phase
@@ -163,7 +162,7 @@ const run = {
   // -- to Tal --
   plan(dt) {
     const p = plan(dt); if (p === undefined) return;
-    if (!p) return fail(C.dest === 'tal' ? 'No way to Tal found from this orbit.' : 'No way back found from this orbit.');
+    if (!p) return done(C.dest === 'tal' ? 'No way to Tal found from this orbit.' : 'No way back found from this orbit.');
     phase('wait', p);
   },
   wait() {
@@ -283,7 +282,7 @@ const run = {
   intercept() { // a burn that reaches a point behind the station after tau
     if (O.stDist < 8000 && O.stSpeed < 20) return dock();
     if (!C.meetT && O.stDist > 300e3) return phase('phaseBurn', phaseHere());
-    if (++C.tries > 6) return fail('Could not close in on Tumbledown. You have the controls.');
+    if (++C.tries > 6) return done('Could not close in on Tumbledown. You have the controls.');
     const t0 = C.meetT ? Math.max(300, C.meetT - S.t) : Math.min(2400, Math.max(300, O.stDist / 80));
     let best = null, tau = t0;
     for (const k of [1, 0.75, 1.3, 0.55, 1.7, 2.2]) { // the planned time first, then others if it is costly or unsafe
@@ -291,7 +290,7 @@ const run = {
       if (!best || dv.length() < best.length()) { best = dv; tau = T; } if (k === 1 && dv.length() < 300) break;
     }
     const dv = best;
-    if (!dv || dv.length() > Math.min(2500, S.fuel - 200)) return fail('Tumbledown is out of reach from here. You have the controls.');
+    if (!dv || dv.length() > Math.min(2500, S.fuel - 200)) return done('Tumbledown is out of reach from here. You have the controls.');
     phase('fixClose', {dv, arrive: S.t + tau, meetT: 0, tries: C.tries});
   },
   fixClose() { // the intercept burn, worked out again every frame from where the ship is, then the coast to the meeting
@@ -346,9 +345,9 @@ function holdDirNow(out) {
   if (S.hold === 'retro') out.negate(); return out.lengthSq() > 1 && out.normalize();
 }
 function dock() {
-  C.phase = 'docking'; S.throttle = 0; S.hold = null;
+  S.throttle = 0; S.hold = null;
   if (hooks.dock()) { C = null; tell('course', 'Tumbledown control has you. Bringing you in.'); }
-  else fail('Station control did not answer. You have the controls.');
+  else done('Station control did not answer. You have the controls.');
 }
 
 // A small velocity change that brings the misses f(v) (metres; one or two of them, as a function of the
