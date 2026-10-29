@@ -308,7 +308,7 @@ const run = {
   match() { // burn against the speed relative to the station until it is gone
     const rel = new V3().subVectors(ST.vel, S.vel), d = rel.length(); C.text = 'Matching speed: ' + Math.round(d) + ' m/s';
     if (d < 0.8) { S.throttle = 0; return phase('intercept', {tries: C.tries}); }
-    holdDirection(rel); S.warpIdx = 0; S.throttle = aligned(rel) ? Math.min(1, Math.max(0.03, d / (SHIP.aMain * 1.5))) : 0;
+    holdDirection(rel); S.warpIdx = Math.min(d > 20 ? 1 : 0, C.userWarp); S.throttle = aligned(rel) ? Math.min(1, Math.max(0.03, d / (SHIP.aMain * 1.5))) : 0;
   },
 };
 // A phasing orbit: the ship goes round k times (period T each, from 1.03 to 1.35 station periods, so the
