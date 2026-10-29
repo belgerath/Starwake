@@ -72,7 +72,7 @@ const jobText = j => `${crateTxt(j.crates)} of ${CARGO[j.cargo].name} to ${OUTPO
 export function goal() {
   if (!G.cleared) return 'Customs first: ' + PEOPLE.customs.who + ' is coming to you.';
   if (G.hold.ashroot) return 'Sell the ' + CARGO.ashroot.name + ' to the Factor in the lower market.';
-  if (G.job) return `Deliver ${jobText(G.job)} on Tal. From orbit, the flight computer can take you there.`;
+  if (G.job) return `Deliver ${jobText(G.job)} on Tal, landing within 3 km of it. The flight computer can fly you there.`;
   if (G.credits < 0) return `You owe ${cr(-G.credits)} credits. Take work from the Factor.`;
   return 'Take work from the Factor, or see Brannoc about the ship.';
 }
@@ -111,7 +111,7 @@ export function talk(key) {
     }
     opts.push({id: 'close', label: 'Not now', main: !opts.length});
     const quote = opts.length > 1 ? 'She flies. Barely. What do you want?' : 'Nothing left to fit. She is as good as I can make her.';
-    return card(key, `Brannoc wipes the grease from a pair of scarred hands. Fuel ${Math.round(100 * S.fuel / SHIP.tank)}%.`, quote, opts);
+    return card(key, `Brannoc wipes scarred hands on a rag. Fuel ${Math.round(100 * S.fuel / SHIP.tank)}%.`, quote, opts);
   }
   // The Factor.
   if (!G.cleared) return card(key, 'The Factor sits in an alcove between the containers, behind a single lamp.', 'No seal. Come back when the Proctor has seen you.', close);
@@ -127,7 +127,7 @@ export function talk(key) {
   const free = holdSize() - used();
   const opts = jobsOnOffer().map(j => ({id: j.id, label: `${OUTPOSTS[j.to].name} · ${j.crates} ${CARGO[j.cargo].name} · ${cr(j.pay)}`, off: j.crates > free}));
   opts.push({id: 'close', label: 'Not now'});
-  return card(key, 'The Factor slides a list across the table. Outposts on Tal, crates, prices.', 'Paid on delivery. Land within three kilometres of the outpost. Lose the cargo and you owe me.', opts);
+  return card(key, 'The Factor slides a list across the table.', 'Paid on delivery. Lose the cargo and you owe me.', opts);
 }
 
 // rand is for tests; the game passes Math.random.

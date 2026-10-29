@@ -168,7 +168,7 @@ kbd{font-family:var(--f-num);font-size:12px;padding:2px 6px;border:1px solid var
   .card{gap:12px;padding:16px}
   .wordmark{font-size:22px}
   .cue.ask #dockAskText,.cue.ask #tugAskText{display:none}
-  .hgOpts .launch{font-size:11px;letter-spacing:.08em}.hgOpts.grid .launch{min-height:34px}
+  .hgOpts .launch{font-size:11px;letter-spacing:.08em}.hgOpts.grid .launch{min-height:32px;letter-spacing:.05em}
 }
 /* Narrow portrait: tighter readouts so they stay clear of the camera buttons; cue and debug line below them. */
 @media (max-width:420px){
