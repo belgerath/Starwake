@@ -139,7 +139,7 @@ export function stepCourse(dt) {
 }
 // Time warp for a wait of `left` seconds: as fast as is safe, never past the pilot's choice in this phase.
 function warpFor(left, cap = 3) {
-  let i = left > 4000 ? 3 : left > 400 ? 2 : left > 40 ? 1 : 0;
+  let i = left > 4000 ? 3 : left > 150 ? 2 : left > 20 ? 1 : 0;
   S.warpIdx = Math.min(i, cap, C.userWarp);
 }
 const aligned = dir => tv.set(0, 0, -1).applyQuaternion(S.quat).angleTo(dir) < ALIGN;

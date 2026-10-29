@@ -110,7 +110,7 @@ Key ideas:
 
 - Veyra's surface detail is tuned for orbit; it turns soft below about 50 km. Tal's ground has real detail down to craters about 70 m across and roughness at 40 m.
 - Ring rocks have no collision. Only the ship casts shadows (on itself and on Tal's ground).
-- Jobs are deliveries to Tal's outposts only; the guns are not upgradable yet; no repairs (no damage model). Landing only on Tal. Courses only between Tumbledown and Tal.
+- Jobs are deliveries to Tal's outposts only; the guns are not upgradable yet; no repairs (no damage model). Landing only on Tal. Courses only between Tumbledown and Tal, and a course is not saved: after reloading the page, start it again.
 - The hangar is a view, not a place to walk; the crowd follows set loops and can pass through each other.
 - The Halberd only flies; it does not scan or react yet.
 - The cockpit view reuses the old destroyer bridge interior, which is roomier than the transport's pod.
