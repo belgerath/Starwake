@@ -37,7 +37,7 @@ const DEG = 180 / Math.PI;
 // doors (0 shut .. 1 open). fuel: what is left in the tanks, as the speed change it buys (m/s, up to SHIP.tank).
 export const S = {
   pos: new V3(), vel: new V3(), quat: new THREE.Quaternion(), w: new V3(), t: 0, moonTh0: 0,
-  throttle: 0, warpIdx: 0, hold: 'pro', heat: 0, lit: 1, aMain: 0, aLift: 0, boostAmt: 0, inAtmo: false, inPitch: 0, inYaw: 0,
+  throttle: 0, warpIdx: 0, hold: 'pro', holdDir: new V3(0, 0, -1), heat: 0, lit: 1, aMain: 0, aLift: 0, boostAmt: 0, inAtmo: false, inPitch: 0, inYaw: 0,
   hover: false, legs: 0, legsDown: false, landed: false, crash: null, dock: null, bay: 0, fuel: 0, lp: new V3(), lpc: new V3(), lq: new THREE.Quaternion(), lqc: new THREE.Quaternion(),
   camMode: 0, camYaw: 0, camPitch: 0, camZoom: 1, mapYaw: 0, mapPitch: 0.4, mapZoom: 1, launched: false, paused: true,
 };
@@ -64,6 +64,7 @@ const tiltFrom = u => Math.acos(clamp(nose.copy(STAND).applyQuaternion(S.quat).d
 
 let notify = () => {};
 export function setNotifier(fn) { notify = fn; }
+export const tell = (key, msg) => notify(key, msg); // for the flight computer's courses (course.js)
 
 export function moonTh(t) { return S.moonTh0 + MOON_N * t; }
 export function moonPos(t, out) { const th = moonTh(t); return out.set(MOON_A * Math.cos(th), 0, -MOON_A * Math.sin(th)).applyQuaternion(moonQ); }
@@ -224,6 +225,7 @@ function resetFlight() { S.fuel = SHIP.tank; S.hover = false; S.legs = 0; S.legs
 // ---- attitude control ----
 const UP_BIAS = 3; // m/s: how hard retrograde leans toward upright when slow over Tal's ground
 function holdDir(out) {
+  if (S.hold === 'dir') { out.copy(S.holdDir); return true; } // a direction set by the flight computer (course.js)
   if (S.hold === 'planet') { out.copy(S.pos).negate().normalize(); return true; }
   if (S.hold === 'moon') { moonPos(S.t, out).sub(S.pos).normalize(); return true; }
   if (S.hold === 'station') { out.subVectors(ST.pos, S.pos).normalize(); return true; }
@@ -378,6 +380,7 @@ export function snapshot() {
 export function restore(s) {
   for (const k of SN_VALS) S[k] = s[k]; for (const k of SN_VECS) S[k].fromArray(s[k]);
   if (typeof S.fuel !== 'number') S.fuel = SHIP.tank; // saves from before fuel: full tanks
+  if (S.hold === 'dir') S.hold = null; // a course's direction is not saved
   S.dock = s.dock && JSON.parse(JSON.stringify(s.dock));
   ST.pos.fromArray(s.st[0]); ST.vel.fromArray(s.st[1]); HB.pos.fromArray(s.hb[0]); HB.vel.fromArray(s.hb[1]);
   S.crash = null; S.warpIdx = 0; S.w.set(0, 0, 0); cueT = -1; orbInfo(); lastAgl = O.agl; lastSt = O.stDist;
