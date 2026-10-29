@@ -85,7 +85,7 @@ export function buildWorld() {
 }
 
 const peq = new V3(), tV = new V3(), vAir = new V3(), qSt = new THREE.Quaternion();
-const skyOut = new THREE.Color(0x000000), groundOut = new THREE.Color(0x6d8db8), bayLamp = new THREE.Color(0xffe2bf), bayFloor = new THREE.Color(0x3a332c);
+const skyOut = new THREE.Color(0x000000), groundOut = new THREE.Color(0x6d8db8), bayLamp = new THREE.Color(0xa88a64), bayFloor = new THREE.Color(0x2a2118); // bay 3: dim and warm, like the hangar
 // How far inside Tumbledown's bay the ship is (0 outside, 1 well in).
 function insideBay() {
   if (O.stDist > 3000) return 0;
@@ -114,7 +114,7 @@ export function updateWorld(dt, rt) {
   S.lit = sunlitFactor(sunDir);
   const inside = insideBay();
   sunLight.intensity = SUN_I * S.lit * (1 - 0.94 * inside); radialOut(tV); hemi.position.copy(tV);
-  const sub = tV.copy(S.pos).normalize().dot(sunDir); hemi.intensity = 0.55 * clamp(sub * 1.5 + 0.35, 0, 1) * Math.pow(R / S.pos.length(), 2) * (1 - inside) + 1.1 * inside;
+  const sub = tV.copy(S.pos).normalize().dot(sunDir); hemi.intensity = 0.55 * clamp(sub * 1.5 + 0.35, 0, 1) * Math.pow(R / S.pos.length(), 2) * (1 - inside) + 0.7 * inside;
   hemi.color.copy(skyOut).lerp(bayLamp, inside); hemi.groundColor.copy(groundOut).lerp(bayFloor, inside);
   for (const m of ship.mats) m.envMapIntensity = (0.12 + 0.88 * S.lit) * (1 - 0.8 * inside);
   // Engine and lift thruster flames, sized by what each is pushing (1 = full throttle, 2 = Boost).

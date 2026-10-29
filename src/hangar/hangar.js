@@ -13,6 +13,7 @@ import {lin, rng, clamp} from '../util.js';
 import {buildTransport} from '../ship/transport.js';
 import {figure, guard, drone, animate, gesture as figGesture} from './figures.js';
 import {HALL, LOOPS, HAULER, OFFICER, SPOTS, along, pathLength} from './paths.js';
+import {canvasTex, blotch, concrete, ribbed, bannerTex, engraving, dotTex, wash as washM, lightShaft} from '../textures.js';
 
 const {x: HX, z: HZ, h: HY} = HALL;
 const FOG = 0x30261c;
@@ -58,25 +59,7 @@ export async function loadHangar(onProgress) {
   onProgress && onProgress(1);
 }
 
-// ---- textures, drawn once ----
-function canvasTex(w, h, draw, repeat) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-  const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 4;
-  if (repeat) { tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(...repeat); }
-  return tx;
-}
-const blotch = (g, r, n, w, h, rgb, a0, a1, s0, s1) => { for (let i = 0; i < n; i++) { const x = r() * w, y = r() * h, s = s0 + r() * (s1 - s0), gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, `rgba(${rgb},${a0 + r() * (a1 - a0)})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(x - s, y - s, 2 * s, 2 * s); } };
-// Board-marked concrete: grain, stains, the lines of the formwork, tie holes, streaks running down.
-function concrete(rep) {
-  return canvasTex(512, 512, (g, w, h) => {
-    const r = rng(11); g.fillStyle = '#8c857a'; g.fillRect(0, 0, w, h);
-    blotch(g, r, 60, w, h, '40,34,28', 0.05, 0.16, 20, 90); blotch(g, r, 30, w, h, '200,190,170', 0.03, 0.08, 20, 70);
-    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '20,18,16' : '230,220,200'},0.06)`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
-    for (let y = 0; y < h; y += 128) { g.fillStyle = 'rgba(20,16,12,0.35)'; g.fillRect(0, y, w, 3); g.fillStyle = 'rgba(255,240,220,0.06)'; g.fillRect(0, y + 3, w, 2); }
-    g.fillStyle = 'rgba(15,12,10,0.55)'; for (let x = 32; x < w; x += 64) for (let y = 64; y < h; y += 128) { g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill(); }
-    for (let i = 0; i < 50; i++) { const x = r() * w, y = r() * h, l = 40 + r() * 200, gr = g.createLinearGradient(0, y, 0, y + l); gr.addColorStop(0, 'rgba(30,24,18,0.18)'); gr.addColorStop(1, 'rgba(30,24,18,0)'); g.fillStyle = gr; g.fillRect(x, y, 2 + r() * 5, l); }
-  }, rep);
-}
+// ---- textures, drawn once (the shared ones, concrete, banners, engraving, the light shaft, are in textures.js) ----
 // Stone slabs, 4 m, each a slightly different shade, with dark joints.
 const slabs = () => canvasTex(512, 512, (g, w, h) => {
   const r = rng(5);
@@ -95,49 +78,9 @@ const sand = () => canvasTex(1024, 1024, (g, w, h) => {
     gr.addColorStop(0, `rgba(176,140,96,${0.25 + r() * 0.35})`); gr.addColorStop(1, 'rgba(176,140,96,0)'); g.fillStyle = gr; g.save(); g.translate(x, y); g.scale(1, 0.35 + r() * 0.5); g.translate(-x, -y); g.fillRect(x - s, y - s, 2 * s, 2 * s); g.restore();
   }
 });
-// Dark ribbed metal, for the doors and the containers.
-const ribbed = (rep, rust = false) => canvasTex(256, 256, (g, w, h) => {
-  const r = rng(rust ? 3 : 4); g.fillStyle = '#7d7a76'; g.fillRect(0, 0, w, h);
-  for (let x = 0; x < w; x += 32) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, 0, 6, h); g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x + 6, 0, 3, h); }
-  if (rust) blotch(g, r, 25, w, h, '120,60,30', 0.15, 0.35, 8, 40);
-  blotch(g, r, 20, w, h, '20,16,12', 0.1, 0.25, 10, 50);
-}, rep);
-// A banner: dark cloth with a pale geometric emblem.
-const bannerTex = (hex) => canvasTex(128, 512, (g, w, h) => {
-  g.fillStyle = hex; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(214,196,160,0.75)'; g.lineWidth = 4;
-  g.beginPath(); g.arc(64, 150, 34, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(64, 100); g.lineTo(64, 260); g.stroke();
-  g.beginPath(); g.moveTo(30, 230); g.lineTo(64, 260); g.lineTo(98, 230); g.stroke();
-  g.fillStyle = 'rgba(214,196,160,0.6)'; g.fillRect(16, 20, 96, 4); g.fillRect(16, h - 24, 96, 4);
-  for (let x = 0; x < w; x += 4) { g.fillStyle = `rgba(0,0,0,${0.08 + 0.08 * Math.sin(x * 0.3)})`; g.fillRect(x, 0, 2, h); }
-});
-// Carved letters: dark in the stone, a lit lower edge.
-const engraving = (text) => canvasTex(1024, 192, (g, w, h) => {
-  g.fillStyle = '#4e483f'; g.fillRect(0, 0, w, h); g.font = '120px Michroma, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillStyle = 'rgba(255,230,190,0.22)'; g.fillText(text, w / 2 + 3, h / 2 + 4); g.fillStyle = '#16120e'; g.fillText(text, w / 2, h / 2);
-});
-const dotTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
 const shadowTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.6)'); gr.addColorStop(0.6, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
 const shadowMat = new THREE.MeshBasicMaterial({map: shadowTex, transparent: true, depthWrite: false});
 function blob(r) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * r, 2 * r), shadowMat); m.rotation.x = -Math.PI / 2; m.position.y = 0.04; m.renderOrder = 1; return m; }
-
-// The shaft of light: an open cone from the roof to the floor, brightest where it is seen face-on and near
-// the top, with faint streaks; added on top of whatever is behind it.
-const SHAFT_VERT = `#include <common>
-#include <logdepthbuf_pars_vertex>
-varying vec3 vN; varying vec3 vV; varying vec2 vUv;
-void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w;
-#include <logdepthbuf_vertex>
-}`;
-const SHAFT_FRAG = `#include <logdepthbuf_pars_fragment>
-uniform vec3 color; uniform float strength; uniform float time;
-varying vec3 vN; varying vec3 vV; varying vec2 vUv;
-void main(){
-#include <logdepthbuf_fragment>
-  float f = abs(dot(normalize(vN), normalize(vV)));
-  float rays = 0.6 + 0.4 * sin(vUv.x * 56.5 + 2.0 * sin(vUv.x * 18.8 + time * 0.07));
-  float a = f * f * strength * rays * mix(0.3, 1.0, vUv.y);
-  gl_FragColor = vec4(color * a, 1.0);
-}`;
 
 function build() {
   const S = H.scene, fogC = new THREE.Color(FOG).convertSRGBToLinear();
@@ -162,7 +105,7 @@ function build() {
   many(new THREE.BoxGeometry(5, HY, 6), butM, posts);
   many(new THREE.BoxGeometry(0.2, 1.0, 0.5), glow(0xffa050, 0.55), posts.map(([x, , z]) => [x - Math.sign(x) * 2.6, 1.4, z]));
   // Each lamp washes the buttress above it and the floor in front of it (painted on, no real lights).
-  const wash = (k) => new THREE.MeshBasicMaterial({map: dotTex, color: lin(0xff9a40).multiplyScalar(k), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending});
+  const wash = (k) => washM(0xff9a40, k);
   const up = new THREE.PlaneGeometry(9, 34).rotateY(Math.PI / 2);
   many(up, wash(0.16), posts.map(([x, , z]) => [x - Math.sign(x) * 2.65, 15, z, x > 0 ? Math.PI : 0])).receiveShadow = false;
   for (const x of [-20, 20]) add(new THREE.PlaneGeometry(14, 46), wash(0.12), x, 26, -HZ + 1.7);
@@ -172,8 +115,7 @@ function build() {
   many(new THREE.BoxGeometry(2 * HX, 4, 3), roofM, [-60, -36, -12, 12, 36, 60].map(z => [0, HY - 2, z]));
   const oculus = add(new THREE.CircleGeometry(7, 40), glow(0xfff0d8, 2.2), 0, HY - 0.05, 0); oculus.rotation.x = Math.PI / 2;
   const rim = add(new THREE.TorusGeometry(7.6, 0.9, 8, 40), std(0x1c1a17), 0, HY - 0.6, 0); rim.rotation.x = Math.PI / 2;
-  shaft = add(new THREE.CylinderGeometry(7, 22, HY, 48, 1, true), new THREE.ShaderMaterial({vertexShader: SHAFT_VERT, fragmentShader: SHAFT_FRAG, uniforms: {color: {value: lin(0xffe2b8)}, strength: {value: 0.15}, time: {value: 0}}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide}), 0, HY / 2, 0);
-  shaft.renderOrder = 2;
+  shaft = lightShaft(7, 22, HY, 0.15); shaft.position.y = HY / 2; S.add(shaft);
 
   // ---- the doors you came in by (+z): two monolithic leaves, light leaking at the seam ----
   const doorM = std(0x3d3a37, ribbed([6, 1]), 0.6, 0.6);
@@ -190,7 +132,7 @@ function build() {
   for (const s of [-1, 1]) add(new THREE.BoxGeometry(5, 40, 6), butM, s * 10.5, 20, -HZ + 3);
   add(new THREE.BoxGeometry(26, 5, 6), butM, 0, 42.5, -HZ + 3);
   add(new THREE.PlaneGeometry(16, 40), new THREE.MeshBasicMaterial({color: 0x030202}), 0, 20, -HZ + 0.3);
-  const deep = add(new THREE.PlaneGeometry(16, 6), new THREE.MeshBasicMaterial({map: dotTex, color: lin(0xff9a40).multiplyScalar(0.35), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}), 0, 2, -HZ + 0.4); deep.scale.set(1.6, 1, 1);
+  const deep = add(new THREE.PlaneGeometry(16, 6), new THREE.MeshBasicMaterial({map: dotTex(), color: lin(0xff9a40).multiplyScalar(0.35), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}), 0, 2, -HZ + 0.4); deep.scale.set(1.6, 1, 1);
   const bay = add(new THREE.PlaneGeometry(26, 4.9), new THREE.MeshStandardMaterial({map: engraving('BAY 3'), roughness: 0.95, metalness: 0}), 0, 49.5, -HZ + 0.25);
   for (const [x, z, ry, hex] of [[-HX + 0.4, -15, Math.PI / 2, '#3a1612'], [-HX + 0.4, 3, Math.PI / 2, '#3a1612'], [-22, -HZ + 1.75, 0, '#2a2620'], [22, -HZ + 1.75, 0, '#2a2620']]) {
     add(new THREE.PlaneGeometry(5, 30), new THREE.MeshStandardMaterial({map: bannerTex(hex), roughness: 1, side: THREE.DoubleSide}), x, 52, z, ry);
@@ -199,7 +141,7 @@ function build() {
   // ---- the Mudlark on its pad, gear down, engines cold; the pad inlaid in the floor ----
   ship = buildTransport(); ship.root.position.set(0, -SHIP.feet[0][1], 0); ship.setLegs(1);
   for (const m of [...ship.flames, ...ship.glows, ...ship.lift.flames, ...ship.lift.glows]) m.visible = false; if (ship.eLight) ship.eLight.visible = false;
-  for (const m of ship.engineGlow) m.color.setRGB(0.02, 0.035, 0.045); // engines cold
+  for (const m of ship.engineGlow) m.color.setRGB(0.008, 0.009, 0.01); // engines cold
   ship.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   for (const m of ship.mats) m.envMapIntensity = 0.6;
   S.add(ship.root); S.add(blob(17));
@@ -265,7 +207,7 @@ function build() {
     pos.set([Math.cos(a) * rr, y, Math.sin(a) * rr], i * 3); const k = inShaft ? 0.55 + 0.45 * R() : 0.12; col.set([k, k * 0.9, k * 0.75], i * 3);
   }
   const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); dg.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  dust = new THREE.Points(dg, new THREE.PointsMaterial({size: 0.16, map: dotTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}));
+  dust = new THREE.Points(dg, new THREE.PointsMaterial({size: 0.16, map: dotTex(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}));
   dust.frustumCulled = false; S.add(dust);
 
   // ---- light: little from anywhere but the opening above ----

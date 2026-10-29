@@ -44,10 +44,24 @@ export const RING_H = 350;         // half-thickness for local rocks
 export const WARPS = [1, 10, 100, 1000];
 
 // Ships. Positions are metres in the ship's frame: the nose points along −z, the deck along +y.
-const ring = (r, y, n) => Array.from({length: n}, (_, i) => [r * Math.sin(i * TAU / n), y, r * Math.cos(i * TAU / n)]);
-// The player's ship: the Mudlark, a small, battered transport about 35 m long. A saucer hull with two cargo
-// prongs at the front, a cockpit pod on the right, a wide engine at the back, lift thrusters and landing gear
-// under the belly. Weak to start with; upgrades come later (docs/game-plan.md, phase 4).
+// The Mudlark's hull, nose to stern: at each z, the half-width at the chine w, the height of the spine t, of the
+// chine c and of the belly b, and the belly's half-width bw. Each section is seven points (hullRing): the spine,
+// two shoulders, the chines and the belly's edges. transport.js lofts the hull through them.
+const SECTIONS = [
+  {z: -21, w: 0.3, t: 0.3, c: 0, b: -0.3, bw: 0.15},
+  {z: -16, w: 3.2, t: 1.4, c: -0.2, b: -1.4, bw: 1.8},
+  {z: -9, w: 6.5, t: 2.6, c: -0.3, b: -2.2, bw: 4.0},
+  {z: -2, w: 9.5, t: 3.2, c: -0.2, b: -2.4, bw: 6.0},
+  {z: 6, w: 10.5, t: 3.3, c: 0, b: -2.4, bw: 7.0},
+  {z: 12, w: 9.0, t: 2.8, c: 0.2, b: -1.7, bw: 6.0},
+  {z: 14, w: 8.2, t: 2.6, c: 0.3, b: -1.2, bw: 5.4},
+];
+export const hullRing = s => [[0, s.t], [s.w * 0.55, s.t * 0.74], [s.w, s.c], [s.bw, s.b], [-s.bw, s.b], [-s.w, s.c], [-s.w * 0.55, s.t * 0.74]].map(([x, y]) => [x, y, s.z]);
+const mirror = pts => pts.flatMap(([x, y, z]) => [[x, y, z], [-x, y, z]]);
+// The player's ship: the Mudlark, a small, battered transport about 35 m long, black and angular. A faceted
+// hull from a knife-edge nose to a broad stern, blades along the spine, spikes off the chines, swept fins, three
+// engines in the stern, lift thrusters and landing gear under the belly. Weak to start with; upgrades come
+// later (docs/game-plan.md, phase 4).
 export const TRANSPORT = {
   name: 'Mudlark', length: 35, mass: 4e5, cda: 150, // drag coefficient × frontal area (m²)
   aMain: 4, aBoost: 8, aRetro: 1,  // m/s²: main engine at full throttle (along the nose), Boost, retro thrusters (Space)
@@ -57,12 +71,14 @@ export const TRANSPORT = {
   stand: [0, 1, 0],                // lands belly-down: this axis points up when standing on the gear
   gearAlt: 1500,                   // the gear comes down below this height over Tal's ground (up again 15% higher)
   feet: [[6, -6, -6], [-6, -6, -6], [6, -6, 6], [-6, -6, 6]], // bottoms of the gear pads, deployed (diagonals 0-3 and 1-2)
-  // Points around the hull: any of them touching the ground is a crash.
-  hull: [...ring(12, 0.2, 8), ...ring(8, -2, 6), [0, -2.4, 0], [0, -3.55, 0.5], [0, 3.6, 0.5], [4.5, 3.6, -3],
-    [3.6, 0, -21], [-3.6, 0, -21], [3.4, -1.1, -19], [-3.4, -1.1, -19], [10.6, 0.5, -14.1], [10.6, -1.0, -9]],
+  sections: SECTIONS,
+  // Points around the hull: any of them touching the ground is a crash. The sections' points, then the tips of
+  // the spikes and fins, the spine's blades, the turrets, the sensor mast and the engines.
+  hull: [...SECTIONS.flatMap(hullRing), ...mirror([[7.6, -0.1, -10.4], [10.1, -0.1, -4.9], [12.1, 0, 0.6], [11.6, 0.2, 5.5], [11.6, 0.2, 12.5], [4.4, -1.0, 15.1]]),
+    [0, 4.3, -6.5], [0, 6.4, 1.5], [0, 6.0, 5.5], [0, 3.8, 11.5], [0, -3.35, -4], [-3.4, 4.3, 10], [0, -1.0, 15.1]],
   // Cameras: chase offset, how far ahead it looks, how far it pulls back with Boost; landing view distance;
   // the least height above Tal's ground; the cockpit eye.
-  chase: [0, 11, 50], ahead: 110, boostPull: 4, landView: 65, camClear: 10, eye: [10.6, 0.75, -11.6],
+  chase: [0, 11, 50], ahead: 110, boostPull: 4, landView: 65, camClear: 10, eye: [0, 2.75, -11.8],
 };
 export const SHIP = TRANSPORT;     // the ship the player flies
 // The Halberd (DD-07), the navy's 400 m destroyer, on patrol PATROL.alt up, starting PATROL.lead ahead of
