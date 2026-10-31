@@ -2,6 +2,7 @@
 // Planet surface detail comes from these noise functions. noise.js is a JS port used for terrain
 // meshes and collision: change NOISE or MOON_H and you must change noise.js / tal.js to match
 // (npm run check:tal compares them on a real GPU).
+import {KEEP_SHADE} from './keep-shape.js';
 
 export const NOISE=`
 vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -212,7 +213,7 @@ export const TERRAIN_FRAG=`#include <common>
 #include <shadowmap_pars_fragment>
 uniform samplerCube albedoMap;uniform samplerCube normalMap;uniform float sunI;uniform float relief;uniform float pixAng;uniform vec3 sunDir;uniform mat3 objRot;
 varying vec3 vDir;varying vec3 vN;varying vec3 vW;varying float vH;
-`+NOISE+`
+`+NOISE+KEEP_SHADE+`
 void main(){
 #include <logdepthbuf_fragment>
   vec3 d=normalize(vDir),Ng=normalize(objRot*d),V=cameraPosition-vW;float dist=length(V);
@@ -235,6 +236,7 @@ void main(){
   // The ship's shadow. Not black: sunlit ground all around bounces some light into it.
   diff*=mix(0.12,1.0,getShadow(directionalShadowMap[0],directionalLightShadows[0].shadowMapSize,directionalLightShadows[0].shadowBias,directionalLightShadows[0].shadowRadius,vDirectionalShadowCoord[0]));
 #endif
+  diff*=mix(0.06,1.0,keepShade(vW)); // the Keep's shadow (keep-shape.js)
   vec3 alb=pow(col,vec3(2.2));
   gl_FragColor=vec4(alb*diff*vec3(1.0,0.97,0.92)*sunI+alb*0.003,1.0);
 #include <tonemapping_fragment>

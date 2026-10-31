@@ -1,23 +1,23 @@
 // Outposts on Tal (OUTPOSTS in config.js), built from primitives in metres in Tal's body frame (W.moon): a pad
 // ringed with lamps where deliveries land, squat concrete bunkers with slit windows, a dome and a mast with a red
-// beacon, and at Kessit Deep the citadel (citadel.js). The buildings show within NEAR of the ship; the beacon keeps
-// a fixed size on screen so it can be seen from orbit (the delivery's outpost always, the others within
-// NEAR_BEACON). No collision: land on the pad.
+// beacon. The buildings show within NEAR of the ship; the beacon keeps a fixed size on screen so it can be seen
+// from orbit (the delivery's outpost always, the others within NEAR_BEACON). No collision: land on the pad.
+// They take the Keep's shadow (keep.js).
 import * as THREE from 'three';
 import {MOON_R, OUTPOSTS, outpostDir} from './config.js';
 import {talHeight} from './tal.js';
 import {lin, rng, glowTex} from './util.js';
 import {concrete} from './textures.js';
-import {buildCitadel} from './citadel.js';
+import {shadeByKeep} from './keep.js';
 
 const NEAR = 150e3, NEAR_BEACON = 400e3;
-// The citadel (citadel.js) stands at Kessit Deep, this far from the pad's centre at this bearing, its door toward the pad.
-const CITADEL = {kessit: {dist: 340, ang: 2.3}};
+
 const V3 = THREE.Vector3;
 
 export function buildOutposts(moon) {
   const conc = concrete([2, 2]), wallM = new THREE.MeshStandardMaterial({map: conc, color: lin(0x6a625a), roughness: 0.95, metalness: 0.05, flatShading: true});
   const darkM = new THREE.MeshStandardMaterial({map: conc, color: lin(0x34302c), roughness: 0.9, metalness: 0.1});
+  shadeByKeep(wallM); shadeByKeep(darkM);
   const glow = (hex, k = 1) => new THREE.MeshBasicMaterial({color: lin(hex).multiplyScalar(k), toneMapped: false});
   const lampM = glow(0xffa050, 0.9), slitM = glow(0xff9a40, 0.7);
   const beaconT = glowTex([[0, 'rgba(255,200,190,1)'], [0.2, 'rgba(255,60,40,0.9)'], [0.55, 'rgba(255,30,20,0.25)'], [1, 'rgba(255,0,0,0)']]);
@@ -41,11 +41,6 @@ export function buildOutposts(moon) {
     add(new THREE.CylinderGeometry(0.8, 1.6, 64, 8), darkM, mx, 30, mz);
     const beacon = new THREE.Sprite(new THREE.SpriteMaterial({map: beaconT, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, sizeAttenuation: false}));
     beacon.position.set(mx, 63, mz); beacon.scale.set(0.035, 0.035, 1); g.add(beacon);
-    const c = CITADEL[key];
-    if (c) {
-      const cx = Math.cos(c.ang) * c.dist, cz = Math.sin(c.ang) * c.dist, cd = new V3(cx, 0, cz).applyQuaternion(g.quaternion).add(g.position).normalize();
-      const cit = buildCitadel(); cit.position.set(cx, talHeight(cd.x, cd.y, cd.z) - talHeight(d.x, d.y, d.z) - 1, cz); cit.rotation.y = Math.atan2(-cx, -cz); g.add(cit);
-    }
     list[key] = {group: g, beacon, parts: g.children.filter(c => c !== beacon)};
   }
   const wp = new V3();

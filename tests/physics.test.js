@@ -4,6 +4,7 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import * as THREE from 'three';
 import {S, O, initOrbit, initTalOrbit, stepFlight, relVel, talQuat, talAgl, moonPos, moonVel, talGroundVel, orbInfo, omegaT, setNotifier, hasCheckpoint, restoreCheckpoint, setHover, STAND_H,
   ST, HB, lvlhQuat, requestDock, startUndock, snapshot, restore, moonQ, outpostPos, towIn} from '../src/physics.js';
+import {KEEP_TO_BODY} from '../src/keep-shape.js';
 import {SUN_DIR, R, FLOOR, MOON_R, MOON_A, OUTPOSTS, TAL_START_ALT, TILT, BRAKE_CLEAR, SHIP, STATION} from '../src/config.js';
 
 const SUN = new THREE.Vector3(...SUN_DIR).normalize();
@@ -241,6 +242,17 @@ describe('landing on Tal', () => {
       run(5); expect(S.crash).toBe(null); expect(S.landed).toBe(true);
       expect(O.outpost).toBe(k); expect(O.outpostDist).toBeLessThan(100);
     }
+  });
+  it('flying into the Keep at Harrow Rise is a crash; passing beside it is not', () => {
+    // 600 m up, 400 m out in front of its face, drifting toward it at 30 m/s (relative to the ground).
+    const fly = (x) => {
+      initTalOrbit(SUN); const q = talQuat(S.t, Q()), m = moonPos(S.t, V()), at = p => new THREE.Vector3(...p).applyMatrix4(KEEP_TO_BODY).applyQuaternion(q).add(m);
+      S.pos.copy(at([x, 600, 520])); const toward = at([x, 600, 0]).sub(S.pos).normalize(), up = S.pos.clone().sub(m).normalize();
+      S.quat.setFromRotationMatrix(new THREE.Matrix4().lookAt(V(), toward, up)); talGroundVel(S.pos, S.t, S.vel); S.vel.addScaledVector(toward, 30);
+      S.w.set(0, 0, 0); S.hold = null; S.hover = true; S.throttle = 0.37; orbInfo(); run(30);
+    };
+    fly(0); expect(S.crash).toMatch(/^You hit the Keep at \d+ m\/s\.$/);
+    fly(700); expect(S.crash).toBe(null);
   });
   it('falling without braking crashes, and can be tried again from 15 km up', () => {
     S.hold = 'retro'; run(40); S.throttle = 1; run(360); S.throttle = 0;

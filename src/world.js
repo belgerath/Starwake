@@ -16,6 +16,7 @@ import {buildTransport} from './ship/transport.js';
 import {buildDestroyer} from './ship/destroyer.js';
 import {buildStation} from './station.js';
 import {buildOutposts} from './outposts.js';
+import {buildKeep, shadeByKeep} from './keep.js';
 import {buildBridge} from './ship/bridge.js';
 
 const V3 = THREE.Vector3;
@@ -68,13 +69,14 @@ export function buildWorld() {
   W.moon = new THREE.Group(); W.moon.position.set(MOON_A, 0, 0); W.moonPivot.add(W.moon);
   W.terrain = createTerrain(W.moon, mA.texture, mN.texture);
   W.outposts = buildOutposts(W.moon); W.outpostTarget = null; // main.js sets the delivery's outpost
+  W.keep = buildKeep(W.moon);
   const mpts = []; for (let i = 0; i <= 360; i++) { const a = i / 360 * TAU; mpts.push(new V3(MOON_A * Math.cos(a), 0, -MOON_A * Math.sin(a))); }
   W.moonLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(mpts), new THREE.LineBasicMaterial({color: 0x8ea2b6, transparent: true, opacity: 0.4, depthWrite: false})); W.moonLine.frustumCulled = false; moonPlane.add(W.moonLine);
   const og = new THREE.BufferGeometry(); og.setAttribute('position', new THREE.BufferAttribute(W.predPos, 3).setUsage(THREE.DynamicDrawUsage)); og.setDrawRange(0, 0);
   W.orbitLine = new THREE.Line(og, new THREE.LineBasicMaterial({color: lin(0xffb14a), toneMapped: false, depthWrite: false, transparent: true})); W.orbitLine.frustumCulled = false; W.world.add(W.orbitLine);
   W.rocks = new THREE.InstancedMesh(rockGeo(55, 2), new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.95, metalness: 0.05, flatShading: true}), ROCK_MAX);
   W.rocks.frustumCulled = false; W.rocks.count = 0; W.rocks.setColorAt(0, new THREE.Color(1, 1, 1)); scene.add(W.rocks);
-  W.ship = buildTransport(); scene.add(W.ship.root);
+  W.ship = buildTransport(); scene.add(W.ship.root); W.ship.mats.forEach(shadeByKeep); // dark in the Keep's shadow
   // Tumbledown and the Halberd sit in W.world at their universe positions (three.js composes matrices in
   // doubles, so near the ship they stay precise). The Halberd's engines are cold.
   W.station = buildStation(); W.world.add(W.station.root);
@@ -106,6 +108,7 @@ export function updateWorld(dt, rt) {
   W.station.root.position.copy(ST.pos); lvlhQuat(ST, W.station.root.quaternion); W.station.update(S.t, S.bay, rt);
   W.halberd.root.position.copy(HB.pos); lvlhQuat(HB, W.halberd.root.quaternion); W.halberd.root.visible = O.hbDist < 300e3 && S.camMode !== 2;
   scene.updateMatrixWorld();
+  W.keep.update(rt, S.lit);
   for (const m of [W.planet, W.cloudMesh]) m.material.uniforms.objRot.value.setFromMatrix4(m.matrixWorld);
   W.terrain.updateUniforms(W.moon, cam, renderer.domElement.height);
   W.atmo.material.uniforms.center.value.copy(W.world.position); W.ringMat.uniforms.center.value.copy(W.world.position);

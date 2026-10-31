@@ -114,7 +114,7 @@ export const STATION = {
 export const OUTPOSTS = {
   kessit: {name: 'Kessit Deep', lat: 1, lon: 176.75, about: 'A mining camp in a basin on the side facing Veyra.'},
   onn: {name: 'Onn Basin', lat: -2.25, lon: 32.25, about: 'Water pumps and a cistern, on the far side.'},
-  harrow: {name: 'Harrow Rise', lat: 2, lon: 259, about: 'A relay mast on a plateau, behind Tal as it goes round.'},
+  harrow: {name: 'Harrow Rise', lat: 2, lon: 259, about: 'A relay mast on a plateau, under the Keep.'},
   tessaly: {name: 'Tessaly Flats', lat: 0, lon: 340.5, about: 'A salvage yard on the flats.'},
 };
 export const OUTPOST_RANGE = 3000;
