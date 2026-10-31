@@ -15,6 +15,7 @@ import {R, GM, ATM_TOP, FLOOR, SCALE_H, MOON_R, GM_M, MOON_A, ORBIT_INC, SOI_M, 
   LEG_TIME, LAND_DOWN, LAND_HARD, LAND_SIDE, LAND_TILT, LAND_SLOPE, CHECKPOINT_ALT} from './config.js';
 import {clamp, smooth} from './util.js';
 import {talHeight} from './tal.js';
+import {KEEP, KEEP_FROM_BODY, KEEP_BODY_POS, keepHit} from './keep-shape.js';
 
 const V3 = THREE.Vector3;
 export const qTilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, TILT));
@@ -308,6 +309,16 @@ function collide() {
   if (r < R + FLOOR) { tV.copy(S.pos).divideScalar(r); S.pos.copy(tV).multiplyScalar(R + FLOOR); const vr = S.vel.dot(tV); if (vr < 0) S.vel.addScaledVector(tV, -vr); notify('floor', 'Hard deck at 15 km. Landing arrives in a later phase.'); }
   contact();
   if (!S.dock && O.dom === 0 && S.pos.distanceToSquared(ST.pos) < 9e6) { stationFrame(); if (hitsStation(toStation(S.pos, sp))) crash(`You hit ${STATION.name} at ${upTo(S.vel.distanceTo(ST.vel))} m/s.`); }
+  if (!S.crash && O.dom === 1 && hitsKeep()) crash(`You hit ${KEEP.name} at ${upTo(vRel.subVectors(S.vel, talGroundVel(S.pos, S.t, mV)).length())} m/s.`);
+}
+// The Keep at Harrow Rise (keep-shape.js): any hull point inside one of its solids. Checked within 1.5 km of it.
+const kB = new V3(), kQ = new THREE.Quaternion();
+const toKeep = (p, out) => out.subVectors(p, mP).applyQuaternion(kQ).applyMatrix4(KEEP_FROM_BODY);
+function hitsKeep() {
+  moonPos(S.t, mP); talQuat(S.t, kQ).invert(); kB.subVectors(S.pos, mP).applyQuaternion(kQ);
+  if (kB.distanceToSquared(KEEP_BODY_POS) > 1500 ** 2 || !keepHit(kB.applyMatrix4(KEEP_FROM_BODY), SHIP_RAD)) return false;
+  for (const c of ALL) if (keepHit(toKeep(pt(c, S.quat, cW), kB))) return true;
+  return false;
 }
 
 // ---- landing ----

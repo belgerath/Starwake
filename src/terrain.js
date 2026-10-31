@@ -11,6 +11,7 @@ import {MOON_R, TAL_MAX_H, TAL_RELIEF, TERRAIN_MAX_LEVEL, TERRAIN_SPLIT, TERRAIN
 import {buildChunk, chunkIndex, chunkSpan, chunkSize, faceDir} from './terrain-build.js';
 import {TERRAIN_VERT, TERRAIN_FRAG} from './shaders.js';
 import {sunDir} from './engine.js';
+import {KEEP_U} from './keep-shape.js';
 
 const LO = MOON_R - TAL_MAX_H, HI = MOON_R + TAL_MAX_H;
 
@@ -25,7 +26,7 @@ function makeNode(face, level, ix, iy, parent) {
 export function createTerrain(parent, albedoMap, normalMap) {
   const group = new THREE.Group(); parent.add(group);
   const uniforms = Object.assign(THREE.UniformsUtils.clone(THREE.UniformsLib.lights), {albedoMap: {value: albedoMap}, normalMap: {value: normalMap},
-    sunDir: {value: sunDir}, sunI: {value: SUN_I}, relief: {value: TAL_RELIEF}, pixAng: {value: 1e-3}, moonR: {value: MOON_R}, objRot: {value: new THREE.Matrix3()}, moonC: {value: new THREE.Vector3()}});
+    sunDir: {value: sunDir}, sunI: {value: SUN_I}, relief: {value: TAL_RELIEF}, pixAng: {value: 1e-3}, moonR: {value: MOON_R}, objRot: {value: new THREE.Matrix3()}, moonC: {value: new THREE.Vector3()}}, KEEP_U);
   const material = new THREE.ShaderMaterial({uniforms, vertexShader: TERRAIN_VERT, fragmentShader: TERRAIN_FRAG, lights: true, extensions: {derivatives: true}});
   const index = new THREE.BufferAttribute(chunkIndex(), 1);
   const roots = [0, 1, 2, 3, 4, 5].map(f => makeNode(f, 0, 0, 0, null));
